@@ -69,7 +69,7 @@ func (r *ClusterReconciler) ReconcileDeletion(ctx context.Context, cluster *capi
 
 	}
 
-	if deletionApplied(cluster) {
+	if !cluster.DeletionTimestamp.IsZero() {
 		log.Info(fmt.Sprintf("Deletion for cluster %s/%s is already applied", cluster.Namespace, cluster.Name))
 		return ctrl.Result{}, nil
 	}

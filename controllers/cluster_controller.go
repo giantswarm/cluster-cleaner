@@ -59,10 +59,10 @@ func (r *ClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		return ctrl.Result{}, err
 	}
 
-	return r.ReconcileDeletion(ctx, cluster, log)
+	return r.reconcile(ctx, cluster, log)
 }
 
-func (r *ClusterReconciler) ReconcileDeletion(ctx context.Context, cluster *capiv1alpha3.Cluster, log logr.Logger) (ctrl.Result, error) {
+func (r *ClusterReconciler) reconcile(ctx context.Context, cluster *capiv1alpha3.Cluster, log logr.Logger) (ctrl.Result, error) {
 	if _, ok := cluster.Annotations[ignoreClusterDeletion]; ok {
 		log.Info(fmt.Sprintf("Found annotation %s. Cluster %s/%s will be ignored for deletion", ignoreClusterDeletion, cluster.Namespace, cluster.Name))
 		return ctrl.Result{}, nil
@@ -88,7 +88,7 @@ func (r *ClusterReconciler) ReconcileDeletion(ctx context.Context, cluster *capi
 	// only send marked for deletion event if we still have ~1h before the cluster gets deleted
 	if deletionEventTimeReached(cluster) {
 		log.Info(fmt.Sprintf("Cluster %s/%s is marked for deletion", cluster.Namespace, cluster.Name))
-		r.clusterDeletionEvent(cluster, fmt.Sprintf("Cluster %s/%s is marked for deletion", cluster.Namespace, cluster.Name))
+		r.submitClusterDeletionEvent(cluster, fmt.Sprintf("Cluster %s/%s is marked for deletion", cluster.Namespace, cluster.Name))
 		return ctrl.Result{
 			RequeueAfter: 1 * time.Hour,
 		}, nil
@@ -110,6 +110,6 @@ func (r *ClusterReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return nil
 }
 
-func (r *ClusterReconciler) clusterDeletionEvent(cluster *capiv1alpha3.Cluster, message string) {
+func (r *ClusterReconciler) submitClusterDeletionEvent(cluster *capiv1alpha3.Cluster, message string) {
 	r.recorder.Eventf(cluster, corev1.EventTypeNormal, "ClusterMarkedForDeletion", message)
 }

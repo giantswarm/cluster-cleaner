@@ -20,7 +20,6 @@ const (
 
 func requeue() reconcile.Result {
 	return ctrl.Result{
-		Requeue:      true,
 		RequeueAfter: time.Minute * 5,
 	}
 }

@@ -32,6 +32,10 @@ func deletionTimeReached(cluster *capiv1alpha3.Cluster) bool {
 	return time.Now().UTC().After(getClusterCreationTimeStamp(cluster).Add(defaultTTL))
 }
 
+func deletionTime(cluster *capiv1alpha3.Cluster) int {
+	return int(defaultTTL.Minutes()) - int(time.Now().UTC().Sub(getClusterCreationTimeStamp(cluster)).Minutes())
+}
+
 func deletionEventTimeReached(cluster *capiv1alpha3.Cluster) bool {
 	return time.Now().UTC().After(getClusterCreationTimeStamp(cluster).Add(eventDefaultTTL))
 }

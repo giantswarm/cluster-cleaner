@@ -89,7 +89,7 @@ func (r *ClusterReconciler) reconcile(ctx context.Context, cluster *capiv1alpha3
 	// only send marked for deletion event if we still have ~1h before the cluster gets deleted
 	if deletionEventTimeReached(cluster) {
 		log.Info(fmt.Sprintf("Cluster %s/%s is marked for deletion", cluster.Namespace, cluster.Name))
-		r.submitClusterDeletionEvent(cluster, fmt.Sprintf("Cluster %s/%s is marked for deletion", cluster.Namespace, cluster.Name))
+		r.submitClusterDeletionEvent(cluster, fmt.Sprintf("Cluster %s/%s will be deleted in aprox. %v min.", cluster.Namespace, cluster.Name, deletionTime(cluster)))
 		return ctrl.Result{
 			RequeueAfter: 1 * time.Hour,
 		}, nil

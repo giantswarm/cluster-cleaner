@@ -53,14 +53,9 @@ func (r *ClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 	cluster := &capiv1alpha3.Cluster{}
 	if err := r.Client.Get(ctx, req.NamespacedName, cluster); err != nil {
 		if apierrors.IsNotFound(err) {
-			// Object not found, return.  Created objects are automatically garbage collected.
-			// For additional cleanup logic use finalizers.
-			//MetricsError.WithLabelValues(req.Name, req.Namespace).Set(0)
 			return ctrl.Result{}, nil
 		}
 
-		// Error reading the object - requeue the request.
-		// Metrics.WithLabelValues(req.Name, req.Namespace).Set(-1)
 		return ctrl.Result{}, err
 	}
 
@@ -69,30 +64,30 @@ func (r *ClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 
 func (r *ClusterReconciler) ReconcileDeletion(ctx context.Context, cluster *capiv1alpha3.Cluster, log logr.Logger) (ctrl.Result, error) {
 	if _, ok := cluster.Annotations[ignoreClusterDeletion]; ok {
-		r.Log.Info(fmt.Sprintf("Found annotation %s. Cluster %s/%s will be ignored for deletion", ignoreClusterDeletion, cluster.Namespace, cluster.Name))
+		log.Info(fmt.Sprintf("Found annotation %s. Cluster %s/%s will be ignored for deletion", ignoreClusterDeletion, cluster.Namespace, cluster.Name))
 		return ctrl.Result{}, nil
 
 	}
 
 	if deletionApplied(cluster) {
-		r.Log.Info("Cluster deletion already applied")
+		log.Info(fmt.Sprintf("Deletion for cluster %s/%s is already applied", cluster.Namespace, cluster.Name))
 		return ctrl.Result{}, nil
 	}
 
 	// immediately delete the cluster if defaultTTL has passed
 	if deletionTimeReached(cluster) {
-		log.Info("Cluster will be deleted")
 		err := r.Client.Delete(ctx, cluster, client.PropagationPolicy(metav1.DeletePropagationBackground))
 		if err != nil {
-			r.Log.Error(err, "unable to delete cluster")
+			log.Error(err, fmt.Sprintf("unable to delete cluster %s/%s", cluster.Namespace, cluster.Name))
 		}
+		log.Info(fmt.Sprintf("Cluster %s/%s will be deleted", cluster.Namespace, cluster.Name))
 
 		return ctrl.Result{}, nil
 	}
 
-	// send only a marked for deletion event if we still have an hour before deletion
+	// only send marked for deletion event if we still have ~1h before the cluster gets deleted
 	if deletionEventTimeReached(cluster) {
-		r.Log.Info("Cluster is marked for deletion")
+		log.Info(fmt.Sprintf("Cluster %s/%s is marked for deletion", cluster.Namespace, cluster.Name))
 		r.clusterDeletionEvent(cluster, fmt.Sprintf("Cluster %s/%s is marked for deletion", cluster.Namespace, cluster.Name))
 		return ctrl.Result{
 			RequeueAfter: 1 * time.Hour,

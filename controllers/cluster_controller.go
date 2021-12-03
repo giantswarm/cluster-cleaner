@@ -79,6 +79,7 @@ func (r *ClusterReconciler) reconcile(ctx context.Context, cluster *capiv1alpha3
 		err := r.Client.Delete(ctx, cluster, client.PropagationPolicy(metav1.DeletePropagationBackground))
 		if err != nil {
 			log.Error(err, fmt.Sprintf("unable to delete cluster %s/%s", cluster.Namespace, cluster.Name))
+			return requeue(), nil
 		}
 		log.Info(fmt.Sprintf("Cluster %s/%s will be deleted", cluster.Namespace, cluster.Name))
 

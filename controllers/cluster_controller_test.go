@@ -97,6 +97,28 @@ func TestClusterController(t *testing.T) {
 				},
 			},
 		},
+		// cluster will be ignored
+		{
+			name:                   "case 3",
+			expectedDeletion:       false,
+			expectedEventTriggered: false,
+
+			cluster: &v1alpha3.Cluster{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test",
+					Namespace: "default",
+					CreationTimestamp: metav1.Time{
+						time.Now().Add(-eventDefaultTTL),
+					},
+					Annotations: map[string]string{
+						ignoreClusterDeletion: "true",
+					},
+					Finalizers: []string{
+						"operatorkit.giantswarm.io/cluster-operator-cluster-controller",
+					},
+				},
+			},
+		},
 	}
 	for i, tc := range testCases {
 		t.Run(strconv.Itoa(i), func(t *testing.T) {

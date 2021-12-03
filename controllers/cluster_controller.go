@@ -33,9 +33,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-const defaultTTL = 24 * time.Hour
-const eventDefaultTTL = defaultTTL - 1*time.Hour
-
 // ClusterReconciler reconciles a Cluster object
 type ClusterReconciler struct {
 	client.Client
@@ -71,10 +68,13 @@ func (r *ClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 }
 
 func (r *ClusterReconciler) ReconcileDeletion(ctx context.Context, cluster *capiv1alpha3.Cluster, log logr.Logger) (ctrl.Result, error) {
-	//if  annotaiont
+	if _, ok := cluster.Annotations[ignoreClusterDeletion]; ok {
+		r.Log.Info(fmt.Sprintf("Found annotation %s. Cluster %s/%s will be ignored for deletion", ignoreClusterDeletion, cluster.Namespace, cluster.Name))
+		return ctrl.Result{}, nil
+
+	}
 
 	if deletionApplied(cluster) {
-		// nothing to do
 		r.Log.Info("Cluster deletion already applied")
 		return ctrl.Result{}, nil
 	}

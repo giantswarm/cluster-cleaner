@@ -29,7 +29,6 @@ func init() {
 }
 
 func TestClusterController(t *testing.T) {
-	//TODO
 	testCases := []struct {
 		name                   string
 		expectedDeletion       bool

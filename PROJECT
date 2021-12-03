@@ -1,0 +1,16 @@
+domain: giantswarm
+layout:
+- go.kubebuilder.io/v3
+projectName: cluster-cleaner
+repo: github.com/giantswarm/cluster-cleaner
+resources:
+- controller: true
+  domain: giantswarm
+  group: cluster.x-k8s.io
+  kind: Cluster
+  version: v1alpha3
+- controller: true
+  domain: giantswarm
+  kind: Cluster
+  version: v1
+version: "3"

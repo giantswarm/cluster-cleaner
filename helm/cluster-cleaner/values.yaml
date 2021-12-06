@@ -7,6 +7,8 @@ image:
 registry:
   domain: docker.io
 
+dryRun: false
+
 pod:
   user:
     id: 1000

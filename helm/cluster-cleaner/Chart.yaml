@@ -1,0 +1,9 @@
+name: cluster-cleaner
+version: [[ .Version ]]
+description: "Operator for deleting test clusters"
+appVersion: "[[ .AppVersion ]]"
+home: "https://github.com/giantswarm/cluster-cleaner"
+apiVersion: v1
+annotations:
+  application.giantswarm.io/team: "phoenix"
+  config.giantswarm.io/version: 1.x.x

@@ -14,3 +14,5 @@ require (
 	sigs.k8s.io/cluster-api v0.3.22
 	sigs.k8s.io/controller-runtime v0.10.3
 )
+
+replace github.com/dgrijalva/jwt-go => github.com/dgrijalva/jwt-go/v4 v4.0.0-preview1

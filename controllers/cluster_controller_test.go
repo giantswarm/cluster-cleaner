@@ -47,7 +47,7 @@ func TestClusterController(t *testing.T) {
 					Name:      "test",
 					Namespace: "default",
 					CreationTimestamp: metav1.Time{
-						time.Now().Add(-defaultTTL),
+						Time: time.Now().Add(-defaultTTL),
 					},
 					Annotations: map[string]string{},
 					Finalizers: []string{
@@ -67,7 +67,7 @@ func TestClusterController(t *testing.T) {
 					Name:      "test",
 					Namespace: "default",
 					CreationTimestamp: metav1.Time{
-						time.Now().Add(-9 * time.Hour),
+						Time: time.Now().Add(-9 * time.Hour),
 					},
 					Annotations: map[string]string{},
 					Finalizers: []string{
@@ -87,7 +87,7 @@ func TestClusterController(t *testing.T) {
 					Name:      "test",
 					Namespace: "default",
 					CreationTimestamp: metav1.Time{
-						time.Now().Add(-eventDefaultTTL),
+						Time: time.Now().Add(-eventDefaultTTL),
 					},
 					Annotations: map[string]string{},
 					Finalizers: []string{
@@ -107,7 +107,7 @@ func TestClusterController(t *testing.T) {
 					Name:      "test",
 					Namespace: "default",
 					CreationTimestamp: metav1.Time{
-						time.Now().Add(-eventDefaultTTL),
+						Time: time.Now().Add(-eventDefaultTTL),
 					},
 					Annotations: map[string]string{
 						ignoreClusterDeletion: "true",

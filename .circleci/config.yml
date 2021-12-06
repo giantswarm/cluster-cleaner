@@ -24,3 +24,71 @@ workflows:
           filters:
             tags:
               only: /^v.*/
+
+      - architect/push-to-docker:
+          context: "architect"
+          name: push-cluster-cleaner-to-quay
+          image: "quay.io/giantswarm/cluster-cleaner"
+          username_envar: "QUAY_USERNAME"
+          password_envar: "QUAY_PASSWORD"
+          requires:
+            - go-build
+          # Needed to trigger job also on git tag.
+          filters:
+            tags:
+              only: /^v.*/
+
+      - architect/push-to-docker:
+          context: "architect"
+          name: push-cluster-cleaner-to-aliyun
+          image: "registry-intl.cn-shanghai.aliyuncs.com/giantswarm/cluster-cleaner"
+          username_envar: "ALIYUN_USERNAME"
+          password_envar: "ALIYUN_PASSWORD"
+          requires:
+            - go-build
+          # Needed to trigger job also on git tag.
+          filters:
+            tags:
+              only: /^v.*/
+
+      - architect/push-to-app-catalog:
+          context: "architect"
+          name: push-cluster-cleaner-to-app-catalog
+          app_catalog: "control-plane-catalog"
+          app_catalog_test: "control-plane-test-catalog"
+          chart: "cluster-cleaner"
+          requires:
+            - push-cluster-cleaner-to-docker
+            - push-cluster-cleaner-to-quay
+          # Needed to trigger job also on git tag.
+          filters:
+            tags:
+              only: /^v.*/
+
+      - architect/push-to-app-collection:
+          context: "architect"
+          name: push-cluster-cleaner-to-aws-app-collection
+          app_name: "cluster-cleaner"
+          app_collection_repo: "aws-app-collection"
+          requires:
+            - push-cluster-cleaner-to-app-catalog
+          filters:
+            # Only do this when a new tag is created.
+            branches:
+              ignore: /.*/
+            tags:
+              only: /^v.*/
+
+      - architect/push-to-app-collection:
+          context: "architect"
+          name: push-cluster-cleaner-to-azure-app-collection
+          app_name: "cluster-cleaner"
+          app_collection_repo: "azure-app-collection"
+          requires:
+            - push-cluster-cleaner-to-app-catalog
+          filters:
+            # Only do this when a new tag is created.
+            branches:
+              ignore: /.*/
+            tags:
+              only: /^v.*/

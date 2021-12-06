@@ -65,12 +65,14 @@ func (r *ClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 
 func (r *ClusterReconciler) reconcile(ctx context.Context, cluster *capiv1alpha3.Cluster, log logr.Logger) (ctrl.Result, error) {
 	if _, ok := cluster.Annotations[ignoreClusterDeletion]; ok {
+		IgnoredTotal.WithLabelValues(cluster.Name, cluster.Namespace).Inc()
 		log.Info(fmt.Sprintf("Found annotation %s. Cluster %s/%s will be ignored for deletion", ignoreClusterDeletion, cluster.Namespace, cluster.Name))
 		return ctrl.Result{}, nil
 
 	}
 
 	if !cluster.DeletionTimestamp.IsZero() {
+		PendingTotal.WithLabelValues(cluster.Name, cluster.Namespace).Inc()
 		log.Info(fmt.Sprintf("Deletion for cluster %s/%s is already applied", cluster.Namespace, cluster.Name))
 		return ctrl.Result{}, nil
 	}
@@ -81,11 +83,13 @@ func (r *ClusterReconciler) reconcile(ctx context.Context, cluster *capiv1alpha3
 			err := r.Client.Delete(ctx, cluster, client.PropagationPolicy(metav1.DeletePropagationBackground))
 			if err != nil {
 				log.Error(err, fmt.Sprintf("unable to delete cluster %s/%s", cluster.Namespace, cluster.Name))
+				ErrorsTotal.WithLabelValues(cluster.Name, cluster.Namespace).Inc()
 				return requeue(), nil
 			}
-			log.Info(fmt.Sprintf("Cluster %s/%s will be deleted", cluster.Namespace, cluster.Name))
+			log.Info(fmt.Sprintf("Cluster %s/%s was deleted", cluster.Namespace, cluster.Name))
+			SuccessTotal.WithLabelValues(cluster.Name, cluster.Namespace).Inc()
 		} else {
-			log.Info("DryRun: skipping sending deletion event for cluster %s/%s", cluster.Namespace, cluster.Name)
+			log.Info(fmt.Sprintf("DryRun: skipping sending deletion event for cluster %s/%s", cluster.Namespace, cluster.Name))
 
 		}
 
@@ -98,7 +102,7 @@ func (r *ClusterReconciler) reconcile(ctx context.Context, cluster *capiv1alpha3
 			log.Info(fmt.Sprintf("Cluster %s/%s is marked for deletion", cluster.Namespace, cluster.Name))
 			r.submitClusterDeletionEvent(cluster, fmt.Sprintf("Cluster %s/%s will be deleted in aprox. %v min.", cluster.Namespace, cluster.Name, deletionTime(cluster)))
 		} else {
-			log.Info("DryRun: skipping sending deletion event for cluster %s/%s", cluster.Namespace, cluster.Name)
+			log.Info(fmt.Sprintf("DryRun: skipping sending deletion event for cluster %s/%s", cluster.Namespace, cluster.Name))
 		}
 		return ctrl.Result{
 			RequeueAfter: 1 * time.Hour,

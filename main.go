@@ -47,8 +47,10 @@ func init() {
 func main() {
 	var metricsAddr string
 	var probeAddr string
+	var dryRun bool
 	flag.StringVar(&metricsAddr, "metrics-bind-address", ":8080", "The address the metric endpoint binds to.")
 	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
+	flag.BoolVar(&dryRun, "dry-run", false, "Enable dry-run.")
 	opts := zap.Options{
 		Development: true,
 	}
@@ -72,6 +74,7 @@ func main() {
 		Client: mgr.GetClient(),
 		Log:    ctrl.Log.WithName("controllers").WithName("Cluster"),
 		Scheme: mgr.GetScheme(),
+		DryRun: dryRun,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Cluster")
 		os.Exit(1)

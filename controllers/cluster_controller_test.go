@@ -31,6 +31,7 @@ func init() {
 func TestClusterController(t *testing.T) {
 	testCases := []struct {
 		name                   string
+		dryRun                 bool
 		expectedDeletion       bool
 		expectedEventTriggered bool
 
@@ -118,6 +119,27 @@ func TestClusterController(t *testing.T) {
 				},
 			},
 		},
+		// only dry-run mode
+		{
+			name:                   "case 4",
+			dryRun:                 true,
+			expectedDeletion:       false,
+			expectedEventTriggered: false,
+
+			cluster: &v1alpha3.Cluster{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test",
+					Namespace: "default",
+					CreationTimestamp: metav1.Time{
+						Time: time.Now().Add(-defaultTTL),
+					},
+					Annotations: map[string]string{},
+					Finalizers: []string{
+						"operatorkit.giantswarm.io/cluster-operator-cluster-controller",
+					},
+				},
+			},
+		},
 	}
 	for i, tc := range testCases {
 		t.Run(strconv.Itoa(i), func(t *testing.T) {
@@ -128,6 +150,7 @@ func TestClusterController(t *testing.T) {
 				Scheme:   fakeScheme,
 				Log:      ctrl.Log.WithName("fake"),
 				recorder: fakeRecorder,
+				DryRun:   tc.dryRun,
 			}
 			ctx := context.TODO()
 			_, err := r.Reconcile(ctx, ctrl.Request{NamespacedName: types.NamespacedName{Name: tc.cluster.GetName(), Namespace: tc.cluster.GetNamespace()}})

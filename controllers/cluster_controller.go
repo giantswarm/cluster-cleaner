@@ -38,6 +38,7 @@ type ClusterReconciler struct {
 	client.Client
 	Log    logr.Logger
 	Scheme *runtime.Scheme
+	DryRun bool
 
 	recorder record.EventRecorder
 }
@@ -76,20 +77,29 @@ func (r *ClusterReconciler) reconcile(ctx context.Context, cluster *capiv1alpha3
 
 	// immediately delete the cluster if defaultTTL has passed
 	if deletionTimeReached(cluster) {
-		err := r.Client.Delete(ctx, cluster, client.PropagationPolicy(metav1.DeletePropagationBackground))
-		if err != nil {
-			log.Error(err, fmt.Sprintf("unable to delete cluster %s/%s", cluster.Namespace, cluster.Name))
-			return requeue(), nil
+		if !r.DryRun {
+			err := r.Client.Delete(ctx, cluster, client.PropagationPolicy(metav1.DeletePropagationBackground))
+			if err != nil {
+				log.Error(err, fmt.Sprintf("unable to delete cluster %s/%s", cluster.Namespace, cluster.Name))
+				return requeue(), nil
+			}
+			log.Info(fmt.Sprintf("Cluster %s/%s will be deleted", cluster.Namespace, cluster.Name))
+		} else {
+			log.Info("DryRun: skipping sending deletion event for cluster %s/%s", cluster.Namespace, cluster.Name)
+
 		}
-		log.Info(fmt.Sprintf("Cluster %s/%s will be deleted", cluster.Namespace, cluster.Name))
 
 		return ctrl.Result{}, nil
 	}
 
 	// only send marked for deletion event if we still have ~1h before the cluster gets deleted
 	if deletionEventTimeReached(cluster) {
-		log.Info(fmt.Sprintf("Cluster %s/%s is marked for deletion", cluster.Namespace, cluster.Name))
-		r.submitClusterDeletionEvent(cluster, fmt.Sprintf("Cluster %s/%s will be deleted in aprox. %v min.", cluster.Namespace, cluster.Name, deletionTime(cluster)))
+		if !r.DryRun {
+			log.Info(fmt.Sprintf("Cluster %s/%s is marked for deletion", cluster.Namespace, cluster.Name))
+			r.submitClusterDeletionEvent(cluster, fmt.Sprintf("Cluster %s/%s will be deleted in aprox. %v min.", cluster.Namespace, cluster.Name, deletionTime(cluster)))
+		} else {
+			log.Info("DryRun: skipping sending deletion event for cluster %s/%s", cluster.Namespace, cluster.Name)
+		}
 		return ctrl.Result{
 			RequeueAfter: 1 * time.Hour,
 		}, nil

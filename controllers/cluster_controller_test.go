@@ -131,7 +131,7 @@ func TestClusterController(t *testing.T) {
 					Name:      "test",
 					Namespace: "default",
 					CreationTimestamp: metav1.Time{
-						time.Now().Add(-defaultTTL),
+						Time: time.Now().Add(-defaultTTL),
 					},
 					Annotations: map[string]string{},
 					Finalizers: []string{

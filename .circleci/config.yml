@@ -51,3 +51,16 @@ workflows:
             tags:
               only: /^v.*/
 
+      - architect/push-to-app-catalog:
+          context: "architect"
+          name: push-cluster-cleaner-to-app-catalog
+          app_catalog: "control-plane-catalog"
+          app_catalog_test: "control-plane-test-catalog"
+          chart: "cluster-cleaner"
+          requires:
+            - push-cluster-cleaner-to-docker
+            - push-cluster-cleaner-to-quay
+          # Needed to trigger job also on git tag.
+          filters:
+            tags:
+              only: /^v.*/

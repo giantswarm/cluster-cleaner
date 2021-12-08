@@ -71,7 +71,7 @@ func (r *ClusterReconciler) reconcile(ctx context.Context, cluster *capiv1alpha3
 		return ctrl.Result{}, nil
 	}
 
-	// check if cluster has a keep-alive label with a valid ISO date string
+	// check if cluster has a keep-until label with a valid ISO date string
 	var keepUntilExpired bool
 	if v, ok := cluster.Labels[keepUntil]; ok {
 		t, err := time.Parse(keepUntilTimeLayout, v)

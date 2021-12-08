@@ -94,7 +94,7 @@ func (r *ClusterReconciler) reconcile(ctx context.Context, cluster *capiv1alpha3
 	}
 
 	// immediately delete the cluster if defaultTTL has passed
-	if deletionTimeReached(cluster) && keepUntilExpired {
+	if deletionTimeReached(cluster) {
 		if !r.DryRun {
 			err := r.Client.Delete(ctx, cluster, client.PropagationPolicy(metav1.DeletePropagationBackground))
 			if err != nil {

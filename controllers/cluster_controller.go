@@ -84,7 +84,7 @@ func (r *ClusterReconciler) reconcile(ctx context.Context, cluster *capiv1alpha3
 			log.Info(fmt.Sprintf("Found label %s. Cluster %s/%s will be ignored for deletion", keepUntil, cluster.Namespace, cluster.Name))
 			return ctrl.Result{RequeueAfter: 24 * time.Hour}, nil
 		}
-	} 
+	}
 
 	// ignore cluster deletion if timestamp is not nil or zero
 	if !cluster.DeletionTimestamp.IsZero() {

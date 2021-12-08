@@ -140,6 +140,54 @@ func TestClusterController(t *testing.T) {
 				},
 			},
 		},
+		// keep valid label has not expired and will be ignored
+		{
+			name:                   "case 5",
+			dryRun:                 false,
+			expectedDeletion:       false,
+			expectedEventTriggered: false,
+
+			cluster: &v1alpha3.Cluster{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test",
+					Namespace: "default",
+					CreationTimestamp: metav1.Time{
+						Time: time.Now().Add(-defaultTTL),
+					},
+					Annotations: map[string]string{},
+					Labels: map[string]string{
+						"keep-valid": "2099-12-01",
+					},
+					Finalizers: []string{
+						"operatorkit.giantswarm.io/cluster-operator-cluster-controller",
+					},
+				},
+			},
+		},
+		// keep valid label has expired and cluster will be deleted
+		{
+			name:                   "case 6",
+			dryRun:                 false,
+			expectedDeletion:       true,
+			expectedEventTriggered: false,
+
+			cluster: &v1alpha3.Cluster{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test",
+					Namespace: "default",
+					CreationTimestamp: metav1.Time{
+						Time: time.Now().Add(-defaultTTL),
+					},
+					Annotations: map[string]string{},
+					Labels: map[string]string{
+						"keep-valid": "2020-12-08",
+					},
+					Finalizers: []string{
+						"operatorkit.giantswarm.io/cluster-operator-cluster-controller",
+					},
+				},
+			},
+		},
 	}
 	for i, tc := range testCases {
 		t.Run(strconv.Itoa(i), func(t *testing.T) {

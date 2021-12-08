@@ -72,21 +72,23 @@ func (r *ClusterReconciler) reconcile(ctx context.Context, cluster *capiv1alpha3
 	}
 
 	// check if cluster has a keep-alive label with a valid ISO date string
-	var keepValidExpired bool
-	if v, ok := cluster.Labels[keepValid]; ok {
-		t, err := time.Parse(keepValidTimeLayout, v)
+	var keepUntilExpired bool
+	if v, ok := cluster.Labels[keepUntil]; ok {
+		t, err := time.Parse(keepUntilTimeLayout, v)
 		if err != nil {
 			ErrorsTotal.WithLabelValues(cluster.Name, cluster.Namespace).Inc()
-			log.Error(err, fmt.Sprintf("failed to parse keep-valid label value for cluster %s/%s", cluster.Namespace, cluster.Name))
+			log.Error(err, fmt.Sprintf("failed to parse keep-until label value for cluster %s/%s", cluster.Namespace, cluster.Name))
 			return ctrl.Result{}, nil
 		}
-		if time.Now().After(t) {
-			keepValidExpired = true
+		if time.Now().UTC().After(t) {
+			keepUntilExpired = true
 		} else {
 			IgnoredTotal.WithLabelValues(cluster.Name, cluster.Namespace).Inc()
-			log.Info(fmt.Sprintf("Found label %s. Cluster %s/%s will be ignored for deletion", keepValid, cluster.Namespace, cluster.Name))
+			log.Info(fmt.Sprintf("Found label %s. Cluster %s/%s will be ignored for deletion", keepUntil, cluster.Namespace, cluster.Name))
 			return ctrl.Result{RequeueAfter: 24 * time.Hour}, nil
 		}
+	} else {
+		keepUntilExpired = true
 	}
 
 	// ignore cluster deletion if timestamp is not nil or zero
@@ -96,8 +98,8 @@ func (r *ClusterReconciler) reconcile(ctx context.Context, cluster *capiv1alpha3
 		return ctrl.Result{}, nil
 	}
 
-	// immediately delete the cluster if defaultTTL has passed or keep-alive value has expired
-	if deletionTimeReached(cluster) || keepValidExpired {
+	// immediately delete the cluster if defaultTTL has passed
+	if deletionTimeReached(cluster) && keepUntilExpired {
 		if !r.DryRun {
 			err := r.Client.Delete(ctx, cluster, client.PropagationPolicy(metav1.DeletePropagationBackground))
 			if err != nil {

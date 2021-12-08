@@ -108,7 +108,7 @@ func TestClusterController(t *testing.T) {
 					Name:      "test",
 					Namespace: "default",
 					CreationTimestamp: metav1.Time{
-						Time: time.Now().Add(-eventDefaultTTL),
+						Time: time.Now().Add(-9 * time.Hour),
 					},
 					Annotations: map[string]string{
 						ignoreClusterDeletion: "true",
@@ -140,7 +140,8 @@ func TestClusterController(t *testing.T) {
 				},
 			},
 		},
-		// keep valid label has not expired and will be ignored
+		// keep-until label has not expired and but the defaultTTL for cluster deletion has expired
+		// cluster should be kept
 		{
 			name:                   "case 5",
 			dryRun:                 false,
@@ -152,11 +153,11 @@ func TestClusterController(t *testing.T) {
 					Name:      "test",
 					Namespace: "default",
 					CreationTimestamp: metav1.Time{
-						Time: time.Now().Add(-defaultTTL),
+						Time: time.Now().Add(-24 * time.Hour),
 					},
 					Annotations: map[string]string{},
 					Labels: map[string]string{
-						"keep-valid": "2099-12-01",
+						keepUntil: "2099-12-01",
 					},
 					Finalizers: []string{
 						"operatorkit.giantswarm.io/cluster-operator-cluster-controller",
@@ -164,7 +165,7 @@ func TestClusterController(t *testing.T) {
 				},
 			},
 		},
-		// keep valid label has expired and cluster will be deleted
+		// keep-until label has expired and cluster will be deleted
 		{
 			name:                   "case 6",
 			dryRun:                 false,
@@ -176,11 +177,11 @@ func TestClusterController(t *testing.T) {
 					Name:      "test",
 					Namespace: "default",
 					CreationTimestamp: metav1.Time{
-						Time: time.Now().Add(-defaultTTL),
+						Time: time.Now().Add(-12 * time.Hour),
 					},
 					Annotations: map[string]string{},
 					Labels: map[string]string{
-						"keep-valid": "2020-12-08",
+						keepUntil: "2020-12-08",
 					},
 					Finalizers: []string{
 						"operatorkit.giantswarm.io/cluster-operator-cluster-controller",

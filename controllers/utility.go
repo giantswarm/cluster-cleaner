@@ -10,12 +10,16 @@ import (
 
 const (
 	ignoreClusterDeletion = "alpha.giantswarm.io/ignore-cluster-deletion"
+	keepUntil             = "keep-until"
 
 	// defaultTTL is the default time to live for a cluster.
 	defaultTTL = 8 * time.Hour
 
 	// eventDefaultTTL is the default time when we sent a `ClusterMarkedForDeletion` event.
 	eventDefaultTTL = defaultTTL - 1*time.Hour
+
+	// keepUntilTimeLayout is the layout for the `keep-until` label.
+	keepUntilTimeLayout = "2006-01-02"
 )
 
 func requeue() reconcile.Result {

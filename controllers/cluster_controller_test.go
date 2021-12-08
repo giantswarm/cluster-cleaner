@@ -140,6 +140,55 @@ func TestClusterController(t *testing.T) {
 				},
 			},
 		},
+		// keep-until label has not expired and but the defaultTTL for cluster deletion has expired
+		// cluster should be kept
+		{
+			name:                   "case 5",
+			dryRun:                 false,
+			expectedDeletion:       false,
+			expectedEventTriggered: false,
+
+			cluster: &v1alpha3.Cluster{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test",
+					Namespace: "default",
+					CreationTimestamp: metav1.Time{
+						Time: time.Now().Add(-24 * time.Hour),
+					},
+					Annotations: map[string]string{},
+					Labels: map[string]string{
+						keepUntil: "2099-12-01",
+					},
+					Finalizers: []string{
+						"operatorkit.giantswarm.io/cluster-operator-cluster-controller",
+					},
+				},
+			},
+		},
+		// keep-until label has expired and cluster will be deleted
+		{
+			name:                   "case 6",
+			dryRun:                 false,
+			expectedDeletion:       true,
+			expectedEventTriggered: false,
+
+			cluster: &v1alpha3.Cluster{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test",
+					Namespace: "default",
+					CreationTimestamp: metav1.Time{
+						Time: time.Now().Add(-12 * time.Hour),
+					},
+					Annotations: map[string]string{},
+					Labels: map[string]string{
+						keepUntil: "2020-12-08",
+					},
+					Finalizers: []string{
+						"operatorkit.giantswarm.io/cluster-operator-cluster-controller",
+					},
+				},
+			},
+		},
 	}
 	for i, tc := range testCases {
 		t.Run(strconv.Itoa(i), func(t *testing.T) {

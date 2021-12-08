@@ -72,7 +72,6 @@ func (r *ClusterReconciler) reconcile(ctx context.Context, cluster *capiv1alpha3
 	}
 
 	// check if cluster has a keep-until label with a valid ISO date string
-	var keepUntilExpired bool
 	if v, ok := cluster.Labels[keepUntil]; ok {
 		t, err := time.Parse(keepUntilTimeLayout, v)
 		if err != nil {
@@ -80,16 +79,12 @@ func (r *ClusterReconciler) reconcile(ctx context.Context, cluster *capiv1alpha3
 			log.Error(err, fmt.Sprintf("failed to parse keep-until label value for cluster %s/%s", cluster.Namespace, cluster.Name))
 			return ctrl.Result{}, nil
 		}
-		if time.Now().UTC().After(t) {
-			keepUntilExpired = true
-		} else {
+		if time.Now().UTC().Before(t) {
 			IgnoredTotal.WithLabelValues(cluster.Name, cluster.Namespace).Inc()
 			log.Info(fmt.Sprintf("Found label %s. Cluster %s/%s will be ignored for deletion", keepUntil, cluster.Namespace, cluster.Name))
 			return ctrl.Result{RequeueAfter: 24 * time.Hour}, nil
 		}
-	} else {
-		keepUntilExpired = true
-	}
+	} 
 
 	// ignore cluster deletion if timestamp is not nil or zero
 	if !cluster.DeletionTimestamp.IsZero() {

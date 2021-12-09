@@ -125,7 +125,7 @@ func (r *ClusterReconciler) reconcile(ctx context.Context, cluster *capiv1alpha3
 		}, nil
 	}
 
-	return ctrl.Result{}, nil
+	return requeue(), nil
 }
 
 // SetupWithManager sets up the controller with the Manager.

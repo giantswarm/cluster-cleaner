@@ -68,7 +68,7 @@ func TestClusterController(t *testing.T) {
 					Name:      "test",
 					Namespace: "default",
 					CreationTimestamp: metav1.Time{
-						Time: time.Now().Add(-9 * time.Hour),
+						Time: time.Now().Add(-11 * time.Hour),
 					},
 					Annotations: map[string]string{},
 					Finalizers: []string{

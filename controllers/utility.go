@@ -13,7 +13,7 @@ const (
 	keepUntil             = "keep-until"
 
 	// defaultTTL is the default time to live for a cluster.
-	defaultTTL = 8 * time.Hour
+	defaultTTL = 10 * time.Hour
 
 	// eventDefaultTTL is the default time when we sent a `ClusterMarkedForDeletion` event.
 	eventDefaultTTL = defaultTTL - 1*time.Hour

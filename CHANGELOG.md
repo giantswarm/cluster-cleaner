@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Change deletion timeout to 10 hours (was 8) to allow a test cluster to survive a full working day.
+
 ## [0.2.1] - 2021-12-09
 
 - Fix reconciling.

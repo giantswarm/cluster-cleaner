@@ -1,30 +1,32 @@
-[![CircleCI](https://circleci.com/gh/giantswarm/template.svg?style=shield)](https://circleci.com/gh/giantswarm/template)
+[![CircleCI](https://circleci.com/gh/giantswarm/cluster-cleaner.svg?style=shield)](https://circleci.com/gh/giantswarm/cluster-cleaner)
 
-# REPOSITORY_NAME
+# cluster-cleaner
 
-This is a template repository containing some basic files every repository
-needs.
+This operator is intended to automate deletion of giant swarm workload test clusters. By default your cluster will be deleted after 10 hours.
 
-To use it just hit `Use this template` button or [this link][generate].
+## how to prevent cluster from being deleted
 
-Things to do with your newly created repo:
+To prevent your cluster from being deleted you can set one of two annotations.
 
-1. Run`devctl replace -i "REPOSITORY_NAME" "$(basename $(git rev-parse
-   --show-toplevel))" --ignore '.git/**' '**'`.
-2. Run `devctl replace -i "template" "$(basename $(git rev-parse
-   --show-toplevel))" --ignore '.git/**' '**'`.
-3. Go to https://github.com/giantswarm/REPOSITORY_NAME/settings and make sure `Allow
-   merge commits` box is unchecked and `Automatically delete head branches` box
-   is checked.
-4. Go to https://github.com/giantswarm/REPOSITORY_NAME/settings/access and add
-   `giantswarm/bots` with `Write` access and `giantswarm/employees` with
-   `Admin` access.
-5. Add this repository to https://github.com/giantswarm/github.
-6. Create quay.io docker repository if needed.
-7. Add the project to the CircleCI:
-   https://circleci.com/setup-project/gh/giantswarm/REPOSITORY_NAME
-8. Change the badge (with style=shield):
-   https://circleci.com/gh/giantswarm/REPOSITORY_NAME.svg?style=shield&circle-token=TOKEN_FOR_PRIVATE_REPO
-   If this is a private repository token with scope `status` will be needed.
+1. Your cluster wont' be deleted until you remove the annotation:
 
-[generate]: https://github.com/giantswarm/template/generate
+```
+annotations:
+  alpha.giantswarm.io/ignore-cluster-deletion: "true"
+```
+
+2. Your cluster will be deleted after the date you've set expired.
+
+```
+annotations:
+	keep-until: "2022-02-01"
+```
+
+## observability
+
+The operator exposes a couple of prometheus metrics.
+
+- `deletion_ignored_total`: the number of all ignored cluster deletion.
+- `deletion_pending_total`: the number of all pending cluster deletion.
+- `deletion_errors_total`: the number of all failed cluster deletion.
+- `deletion_succeeded_total`: the number of all clusters that were deleted successfully.

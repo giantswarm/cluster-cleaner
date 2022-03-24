@@ -5,6 +5,7 @@ import (
 
 	capiv1alpha3 "sigs.k8s.io/cluster-api/api/v1alpha3"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
@@ -20,6 +21,12 @@ const (
 
 	// keepUntilTimeLayout is the layout for the `keep-until` label.
 	keepUntilTimeLayout = "2006-01-02"
+
+	// helmReleaseNameAnnotation is the annotation containing the chart release name
+	helmReleaseNameAnnotation = "meta.helm.sh/release-name"
+
+	// helmReleaseNamespaceAnnotation is the annotation containing the chart release namespace
+	helmReleaseNamespaceAnnotation = "meta.helm.sh/release-namespace"
 )
 
 func requeue() reconcile.Result {
@@ -42,4 +49,17 @@ func deletionTime(cluster *capiv1alpha3.Cluster) int {
 
 func deletionEventTimeReached(cluster *capiv1alpha3.Cluster) bool {
 	return time.Now().UTC().After(getClusterCreationTimeStamp(cluster).Add(eventDefaultTTL))
+}
+
+func hasChartAnnotations(cluster *capiv1alpha3.Cluster) bool {
+	releaseName, nameOK := cluster.ObjectMeta.Annotations[helmReleaseNameAnnotation]
+	releaseNamespace, namespaceOK := cluster.ObjectMeta.Annotations[helmReleaseNamespaceAnnotation]
+	return nameOK && namespaceOK && releaseName != "" && releaseNamespace != ""
+}
+
+func getChartNamespacedName(cluster *capiv1alpha3.Cluster) client.ObjectKey {
+	return client.ObjectKey{
+		Name:      cluster.ObjectMeta.Annotations[helmReleaseNameAnnotation],
+		Namespace: cluster.ObjectMeta.Annotations[helmReleaseNamespaceAnnotation],
+	}
 }

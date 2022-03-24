@@ -3,6 +3,8 @@ module github.com/giantswarm/cluster-cleaner
 go 1.16
 
 require (
+	github.com/giantswarm/apiextensions-application v0.3.1
+	github.com/giantswarm/k8smetadata v0.6.0
 	github.com/go-logr/logr v0.4.0
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.11.0

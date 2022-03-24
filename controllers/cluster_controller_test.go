@@ -7,6 +7,8 @@ import (
 	"testing"
 	"time"
 
+	gsapplication "github.com/giantswarm/apiextensions-application/api/v1alpha1"
+	"github.com/giantswarm/k8smetadata/pkg/label"
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -26,6 +28,7 @@ var (
 func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(fakeScheme))
 	_ = v1alpha3.AddToScheme(fakeScheme)
+	_ = gsapplication.AddToScheme(fakeScheme)
 }
 
 func TestClusterController(t *testing.T) {
@@ -232,6 +235,255 @@ func TestClusterController(t *testing.T) {
 				}
 			}
 			assert.Equal(t, tc.expectedEventTriggered, triggered, "test case %v failed.", tc.name)
+		})
+	}
+}
+
+func TestClusterAppDeletion(t *testing.T) {
+	testCases := []struct {
+		name                    string
+		dryRun                  bool
+		expectedClusterDeletion bool
+
+		cluster *v1alpha3.Cluster
+		apps    []struct {
+			app              *gsapplication.App
+			expectedDeletion bool
+		}
+	}{
+		// app marked for deletion
+		{
+			name:                    "case 0 - app delete",
+			expectedClusterDeletion: false,
+
+			cluster: &v1alpha3.Cluster{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test",
+					Namespace: "default",
+					CreationTimestamp: metav1.Time{
+						Time: time.Now().Add(-defaultTTL),
+					},
+					Annotations: map[string]string{
+						helmReleaseNameAnnotation:      "test",
+						helmReleaseNamespaceAnnotation: "default",
+					},
+					Finalizers: []string{
+						"operatorkit.giantswarm.io/cluster-operator-cluster-controller",
+					},
+				},
+			},
+			apps: []struct {
+				app              *gsapplication.App
+				expectedDeletion bool
+			}{
+				{
+					expectedDeletion: true,
+					app: &gsapplication.App{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      "test",
+							Namespace: "default",
+							Labels: map[string]string{
+								label.Cluster: "test",
+							},
+							Finalizers: []string{
+								"test.giantswarm.io/keep",
+							},
+						},
+					},
+				},
+			},
+		},
+		// nothing marked for deletion
+		{
+			name:                    "case 1 - no delete",
+			expectedClusterDeletion: false,
+
+			cluster: &v1alpha3.Cluster{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test",
+					Namespace: "default",
+					CreationTimestamp: metav1.Time{
+						Time: time.Now().Add(defaultTTL),
+					},
+					Annotations: map[string]string{
+						helmReleaseNameAnnotation:      "test",
+						helmReleaseNamespaceAnnotation: "default",
+					},
+					Finalizers: []string{
+						"operatorkit.giantswarm.io/cluster-operator-cluster-controller",
+					},
+				},
+			},
+			apps: []struct {
+				app              *gsapplication.App
+				expectedDeletion bool
+			}{
+				{
+					expectedDeletion: false,
+					app: &gsapplication.App{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      "test",
+							Namespace: "default",
+							Labels: map[string]string{
+								label.Cluster: "test",
+							},
+							Finalizers: []string{
+								"test.giantswarm.io/keep",
+							},
+						},
+					},
+				},
+			},
+		},
+		// cluster marked for deletion
+		{
+			name:                    "case 2 - cluster delete",
+			expectedClusterDeletion: true,
+
+			cluster: &v1alpha3.Cluster{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test",
+					Namespace: "default",
+					CreationTimestamp: metav1.Time{
+						Time: time.Now().Add(-defaultTTL),
+					},
+					Annotations: map[string]string{
+						helmReleaseNameAnnotation:      "test",
+						helmReleaseNamespaceAnnotation: "default",
+					},
+					Finalizers: []string{
+						"operatorkit.giantswarm.io/cluster-operator-cluster-controller",
+					},
+				},
+			},
+			apps: []struct {
+				app              *gsapplication.App
+				expectedDeletion bool
+			}{},
+		},
+		// multiple apps marked for deletion
+		{
+			name:                    "case 3 - multiple app delete",
+			expectedClusterDeletion: false,
+
+			cluster: &v1alpha3.Cluster{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test",
+					Namespace: "default",
+					CreationTimestamp: metav1.Time{
+						Time: time.Now().Add(-defaultTTL),
+					},
+					Annotations: map[string]string{
+						helmReleaseNameAnnotation:      "test",
+						helmReleaseNamespaceAnnotation: "default",
+					},
+					Finalizers: []string{
+						"operatorkit.giantswarm.io/cluster-operator-cluster-controller",
+					},
+				},
+			},
+			apps: []struct {
+				app              *gsapplication.App
+				expectedDeletion bool
+			}{
+				{
+					expectedDeletion: true,
+					app: &gsapplication.App{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      "test",
+							Namespace: "default",
+							Labels: map[string]string{
+								label.Cluster: "test",
+							},
+							Finalizers: []string{
+								"test.giantswarm.io/keep",
+							},
+						},
+					},
+				},
+				{
+					expectedDeletion: true,
+					app: &gsapplication.App{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      "default-apps",
+							Namespace: "default",
+							Labels: map[string]string{
+								label.Cluster: "test",
+							},
+							Finalizers: []string{
+								"test.giantswarm.io/keep",
+							},
+						},
+					},
+				},
+				{
+					expectedDeletion: false,
+					app: &gsapplication.App{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      "coredns",
+							Namespace: "default",
+							Labels: map[string]string{
+								label.Cluster:                  "test",
+								"app.kubernetes.io/managed-by": "Helm",
+							},
+							Finalizers: []string{
+								"test.giantswarm.io/keep",
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+	for i, tc := range testCases {
+		t.Run(strconv.Itoa(i), func(t *testing.T) {
+			fakeClientBuilder := fake.NewClientBuilder().WithScheme(fakeScheme).WithObjects(tc.cluster)
+			for _, app := range tc.apps {
+				fakeClientBuilder = fakeClientBuilder.WithObjects(app.app)
+			}
+			fakeClient := fakeClientBuilder.Build()
+			fakeRecorder := record.NewFakeRecorder(1)
+			r := &ClusterReconciler{
+				Client:   fakeClient,
+				Scheme:   fakeScheme,
+				Log:      ctrl.Log.WithName("fake"),
+				recorder: fakeRecorder,
+				DryRun:   tc.dryRun,
+			}
+			ctx := context.TODO()
+			_, err := r.Reconcile(ctx, ctrl.Request{NamespacedName: types.NamespacedName{Name: tc.cluster.GetName(), Namespace: tc.cluster.GetNamespace()}})
+			if err != nil {
+				t.Error(err)
+			}
+
+			cluster := &v1alpha3.Cluster{}
+			err = fakeClient.Get(ctx, types.NamespacedName{Name: tc.cluster.GetName(), Namespace: tc.cluster.GetNamespace()}, cluster)
+			if err != nil {
+				t.Error(err)
+			}
+
+			if tc.expectedClusterDeletion && cluster.DeletionTimestamp == nil {
+				t.Errorf("expected deletion timestamp to be set on cluster")
+			}
+
+			if !tc.expectedClusterDeletion {
+				for _, a := range tc.apps {
+					app := &gsapplication.App{}
+					err = fakeClient.Get(ctx, types.NamespacedName{Name: a.app.GetName(), Namespace: a.app.GetNamespace()}, app)
+					if err != nil {
+						t.Error(err)
+					}
+
+					if a.expectedDeletion && app.DeletionTimestamp == nil {
+						t.Errorf("expected deletion timestamp to be set on app")
+					} else if !a.expectedDeletion && app.DeletionTimestamp != nil {
+						t.Errorf("not expecting deletion timestamp to be set on app")
+					}
+				}
+			}
+			if t.Failed() {
+				t.Logf("Test case '%s' failed", tc.name)
+			}
 		})
 	}
 }

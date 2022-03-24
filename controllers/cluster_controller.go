@@ -21,12 +21,16 @@ import (
 	"fmt"
 	"time"
 
+	gsapplication "github.com/giantswarm/apiextensions-application/api/v1alpha1"
+	"github.com/giantswarm/k8smetadata/pkg/label"
 	"github.com/go-logr/logr"
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/selection"
 	"k8s.io/client-go/tools/record"
 	capiv1alpha3 "sigs.k8s.io/cluster-api/api/v1alpha3"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -95,8 +99,69 @@ func (r *ClusterReconciler) reconcile(ctx context.Context, cluster *capiv1alpha3
 
 	// immediately delete the cluster if defaultTTL has passed
 	if deletionTimeReached(cluster) {
+		propagationPolicy := metav1.DeletePropagationBackground
+
 		if !r.DryRun {
-			err := r.Client.Delete(ctx, cluster, client.PropagationPolicy(metav1.DeletePropagationBackground))
+			// handle new CAPI clusters created via an App resource (e.g. cluster-aws)
+			if hasChartAnnotations(cluster) {
+
+				app := &gsapplication.App{}
+				err := r.Client.Get(ctx, getChartNamespacedName(cluster), app)
+				if err != nil && !apierrors.IsNotFound(err) {
+					return ctrl.Result{}, err
+				} else if err == nil {
+					selector := labels.NewSelector()
+					clusterNameReq, _ := labels.NewRequirement(label.Cluster, selection.In, []string{cluster.Name})
+					managedByReq, _ := labels.NewRequirement("app.kubernetes.io/managed-by", selection.NotEquals, []string{"Helm"})
+					selector = selector.Add(*clusterNameReq, *managedByReq)
+
+					// Delete cluster Apps
+					{
+						err := r.Client.DeleteAllOf(ctx, &gsapplication.App{}, &client.DeleteAllOfOptions{
+							ListOptions: client.ListOptions{
+								Namespace:     cluster.GetNamespace(),
+								LabelSelector: selector,
+							},
+							DeleteOptions: client.DeleteOptions{
+								PropagationPolicy: &propagationPolicy,
+							},
+						})
+						if err != nil {
+							log.Error(err, fmt.Sprintf("unable to delete Apps for cluster %s/%s", cluster.Namespace, cluster.Name))
+							ErrorsTotal.WithLabelValues(cluster.Name, cluster.Namespace).Inc()
+							return requeue(), nil
+						}
+					}
+
+					// Delete cluster ConfigMaps
+					{
+						err := r.Client.DeleteAllOf(ctx, &corev1.ConfigMap{}, &client.DeleteAllOfOptions{
+							ListOptions: client.ListOptions{
+								Namespace:     cluster.GetNamespace(),
+								LabelSelector: selector,
+							},
+							DeleteOptions: client.DeleteOptions{
+								PropagationPolicy: &propagationPolicy,
+							},
+						})
+						if err != nil {
+							log.Error(err, fmt.Sprintf("unable to delete ConfigMaps for cluster %s/%s", cluster.Namespace, cluster.Name))
+							ErrorsTotal.WithLabelValues(cluster.Name, cluster.Namespace).Inc()
+							return requeue(), nil
+						}
+					}
+
+					log.Info(fmt.Sprintf("Cluster %s/%s was deleted", cluster.Namespace, cluster.Name))
+					SuccessTotal.WithLabelValues(cluster.Name, cluster.Namespace).Inc()
+
+					return ctrl.Result{}, nil
+				}
+
+				// We have a cluster that no longer has an associated app
+				// so we'll fall through to deleting the Cluster resource
+			}
+
+			err := r.Client.Delete(ctx, cluster, client.PropagationPolicy(propagationPolicy))
 			if err != nil {
 				log.Error(err, fmt.Sprintf("unable to delete cluster %s/%s", cluster.Namespace, cluster.Name))
 				ErrorsTotal.WithLabelValues(cluster.Name, cluster.Namespace).Inc()

@@ -16,7 +16,7 @@ import (
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/tools/record"
-	"sigs.k8s.io/cluster-api/api/v1beta1"
+	capi "sigs.k8s.io/cluster-api/api/v1beta1"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 )
@@ -27,7 +27,7 @@ var (
 
 func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(fakeScheme))
-	_ = v1beta1.AddToScheme(fakeScheme)
+	_ = capi.AddToScheme(fakeScheme)
 	_ = gsapplication.AddToScheme(fakeScheme)
 }
 
@@ -38,7 +38,7 @@ func TestClusterController(t *testing.T) {
 		expectedDeletion       bool
 		expectedEventTriggered bool
 
-		cluster *v1beta1.Cluster
+		cluster *capi.Cluster
 	}{
 		// cluster marked for deletion
 		{
@@ -46,7 +46,7 @@ func TestClusterController(t *testing.T) {
 			expectedDeletion:       true,
 			expectedEventTriggered: false,
 
-			cluster: &v1beta1.Cluster{
+			cluster: &capi.Cluster{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "test",
 					Namespace: "default",
@@ -66,7 +66,7 @@ func TestClusterController(t *testing.T) {
 			expectedDeletion:       false,
 			expectedEventTriggered: false,
 
-			cluster: &v1beta1.Cluster{
+			cluster: &capi.Cluster{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "test",
 					Namespace: "default",
@@ -86,7 +86,7 @@ func TestClusterController(t *testing.T) {
 			expectedDeletion:       false,
 			expectedEventTriggered: true,
 
-			cluster: &v1beta1.Cluster{
+			cluster: &capi.Cluster{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "test",
 					Namespace: "default",
@@ -106,7 +106,7 @@ func TestClusterController(t *testing.T) {
 			expectedDeletion:       false,
 			expectedEventTriggered: false,
 
-			cluster: &v1beta1.Cluster{
+			cluster: &capi.Cluster{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "test",
 					Namespace: "default",
@@ -129,7 +129,7 @@ func TestClusterController(t *testing.T) {
 			expectedDeletion:       false,
 			expectedEventTriggered: false,
 
-			cluster: &v1beta1.Cluster{
+			cluster: &capi.Cluster{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "test",
 					Namespace: "default",
@@ -151,7 +151,7 @@ func TestClusterController(t *testing.T) {
 			expectedDeletion:       false,
 			expectedEventTriggered: false,
 
-			cluster: &v1beta1.Cluster{
+			cluster: &capi.Cluster{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "test",
 					Namespace: "default",
@@ -175,7 +175,7 @@ func TestClusterController(t *testing.T) {
 			expectedDeletion:       true,
 			expectedEventTriggered: false,
 
-			cluster: &v1beta1.Cluster{
+			cluster: &capi.Cluster{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "test",
 					Namespace: "default",
@@ -210,7 +210,7 @@ func TestClusterController(t *testing.T) {
 				t.Error(err)
 			}
 
-			obj := &v1beta1.Cluster{}
+			obj := &capi.Cluster{}
 			err = fakeClient.Get(ctx, types.NamespacedName{Name: tc.cluster.GetName(), Namespace: tc.cluster.GetNamespace()}, obj)
 			if err != nil {
 				t.Error(err)
@@ -245,7 +245,7 @@ func TestClusterAppDeletion(t *testing.T) {
 		dryRun                  bool
 		expectedClusterDeletion bool
 
-		cluster *v1beta1.Cluster
+		cluster *capi.Cluster
 		apps    []struct {
 			app              *gsapplication.App
 			expectedDeletion bool
@@ -256,7 +256,7 @@ func TestClusterAppDeletion(t *testing.T) {
 			name:                    "case 0 - app delete",
 			expectedClusterDeletion: false,
 
-			cluster: &v1beta1.Cluster{
+			cluster: &capi.Cluster{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "test",
 					Namespace: "default",
@@ -298,7 +298,7 @@ func TestClusterAppDeletion(t *testing.T) {
 			name:                    "case 1 - no delete",
 			expectedClusterDeletion: false,
 
-			cluster: &v1beta1.Cluster{
+			cluster: &capi.Cluster{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "test",
 					Namespace: "default",
@@ -340,7 +340,7 @@ func TestClusterAppDeletion(t *testing.T) {
 			name:                    "case 2 - cluster delete",
 			expectedClusterDeletion: true,
 
-			cluster: &v1beta1.Cluster{
+			cluster: &capi.Cluster{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "test",
 					Namespace: "default",
@@ -366,7 +366,7 @@ func TestClusterAppDeletion(t *testing.T) {
 			name:                    "case 3 - multiple app delete",
 			expectedClusterDeletion: false,
 
-			cluster: &v1beta1.Cluster{
+			cluster: &capi.Cluster{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "test",
 					Namespace: "default",
@@ -456,7 +456,7 @@ func TestClusterAppDeletion(t *testing.T) {
 				t.Error(err)
 			}
 
-			cluster := &v1beta1.Cluster{}
+			cluster := &capi.Cluster{}
 			err = fakeClient.Get(ctx, types.NamespacedName{Name: tc.cluster.GetName(), Namespace: tc.cluster.GetNamespace()}, cluster)
 			if err != nil {
 				t.Error(err)

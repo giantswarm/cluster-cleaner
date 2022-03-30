@@ -5,15 +5,15 @@ go 1.16
 require (
 	github.com/giantswarm/apiextensions-application v0.3.1
 	github.com/giantswarm/k8smetadata v0.6.0
-	github.com/go-logr/logr v0.4.0
+	github.com/go-logr/logr v1.2.0
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.11.0
 	github.com/stretchr/testify v1.7.0
-	k8s.io/api v0.22.4
-	k8s.io/apimachinery v0.22.4
-	k8s.io/client-go v0.22.4
-	sigs.k8s.io/cluster-api v0.3.22
-	sigs.k8s.io/controller-runtime v0.10.3
+	k8s.io/api v0.23.0
+	k8s.io/apimachinery v0.23.0
+	k8s.io/client-go v0.23.0
+	sigs.k8s.io/cluster-api v1.1.3
+	sigs.k8s.io/controller-runtime v0.11.1
 )
 
 replace (

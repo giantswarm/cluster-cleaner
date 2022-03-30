@@ -32,7 +32,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/selection"
 	"k8s.io/client-go/tools/record"
-	capiv1alpha3 "sigs.k8s.io/cluster-api/api/v1alpha3"
+	capiv1beta1 "sigs.k8s.io/cluster-api/api/v1beta1"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -55,7 +55,7 @@ func (r *ClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 	log := r.Log.WithValues("cluster", req.NamespacedName)
 
 	// Fetch the Cluster instance.
-	cluster := &capiv1alpha3.Cluster{}
+	cluster := &capiv1beta1.Cluster{}
 	if err := r.Client.Get(ctx, req.NamespacedName, cluster); err != nil {
 		if apierrors.IsNotFound(err) {
 			return ctrl.Result{}, nil
@@ -67,7 +67,7 @@ func (r *ClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 	return r.reconcile(ctx, cluster, log)
 }
 
-func (r *ClusterReconciler) reconcile(ctx context.Context, cluster *capiv1alpha3.Cluster, log logr.Logger) (ctrl.Result, error) {
+func (r *ClusterReconciler) reconcile(ctx context.Context, cluster *capiv1beta1.Cluster, log logr.Logger) (ctrl.Result, error) {
 	// ignore cluster from being deleted if ignore annotation is set
 	if _, ok := cluster.Annotations[ignoreClusterDeletion]; ok {
 		IgnoredTotal.WithLabelValues(cluster.Name, cluster.Namespace).Inc()
@@ -196,7 +196,7 @@ func (r *ClusterReconciler) reconcile(ctx context.Context, cluster *capiv1alpha3
 // SetupWithManager sets up the controller with the Manager.
 func (r *ClusterReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	err := ctrl.NewControllerManagedBy(mgr).
-		For(&capiv1alpha3.Cluster{}).
+		For(&capiv1beta1.Cluster{}).
 		Complete(r)
 	if err != nil {
 		return errors.Wrap(err, "failed setting up with a controller manager")
@@ -206,6 +206,6 @@ func (r *ClusterReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return nil
 }
 
-func (r *ClusterReconciler) submitClusterDeletionEvent(cluster *capiv1alpha3.Cluster, message string) {
+func (r *ClusterReconciler) submitClusterDeletionEvent(cluster *capiv1beta1.Cluster, message string) {
 	r.recorder.Eventf(cluster, corev1.EventTypeNormal, "ClusterMarkedForDeletion", message)
 }

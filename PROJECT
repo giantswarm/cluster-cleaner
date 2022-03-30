@@ -8,7 +8,7 @@ resources:
   domain: giantswarm
   group: cluster.x-k8s.io
   kind: Cluster
-  version: v1alpha3
+  version: v1beta1
 - controller: true
   domain: giantswarm
   kind: Cluster

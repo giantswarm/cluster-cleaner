@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Reconcile `v1beta1` Cluster CR's.
+
 ## [0.4.0] - 2022-03-24
 
 ### Added

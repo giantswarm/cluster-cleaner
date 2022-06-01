@@ -68,6 +68,12 @@ func (r *ClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 }
 
 func (r *ClusterReconciler) reconcile(ctx context.Context, cluster *capi.Cluster, log logr.Logger) (ctrl.Result, error) {
+	if _, ok := cluster.Labels[fluxLabel]; ok {
+		IgnoredTotal.WithLabelValues(cluster.Name, cluster.Namespace).Inc()
+		log.Info(fmt.Sprintf("Found annotation %s. Cluster %s/%s will be ignored for deletion", fluxLabel, cluster.Namespace, cluster.Name))
+		return ctrl.Result{}, nil
+	}
+
 	// ignore cluster from being deleted if ignore annotation is set
 	if _, ok := cluster.Annotations[ignoreClusterDeletion]; ok {
 		IgnoredTotal.WithLabelValues(cluster.Name, cluster.Namespace).Inc()

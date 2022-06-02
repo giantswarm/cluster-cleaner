@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Ignore clusters if managed via `flux`.
+
 ### Changed
 
 - Reconcile `v1beta1` Cluster CR's.

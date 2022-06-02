@@ -27,6 +27,9 @@ const (
 
 	// helmReleaseNamespaceAnnotation is the annotation containing the chart release namespace
 	helmReleaseNamespaceAnnotation = "meta.helm.sh/release-namespace"
+
+	// fluxLabel is the label for checking if the cluster is created via git-ops
+	fluxLabel = "kustomize.toolkit.fluxcd.io/name"
 )
 
 func requeue() reconcile.Result {

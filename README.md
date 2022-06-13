@@ -18,7 +18,7 @@ annotations:
 2. Your cluster will be deleted after the date you've set expired.
 
 ```
-annotations:
+labels:
 	keep-until: "2022-02-01"
 ```
 

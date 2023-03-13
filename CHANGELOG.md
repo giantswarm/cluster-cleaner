@@ -15,8 +15,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Change deletion timeout to 4 hours (was 10).
 - Allowed more volumes in psp to prevent seccompprofile changes from spinning pods.
-- Update to Go 1.18.
+- Update to Go 1.19.
 
 ## [0.5.0] - 2022-06-02
 

@@ -15,6 +15,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Update to Go 1.18.
+
+### Changed
+
 - Alowed more volumes in psp to prevent seccompprofile changes from spinning pods.
 
 ## [0.5.0] - 2022-06-02

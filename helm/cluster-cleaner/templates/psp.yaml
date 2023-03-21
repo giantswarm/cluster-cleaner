@@ -3,6 +3,8 @@ apiVersion: policy/v1beta1
 kind: PodSecurityPolicy
 metadata:
   name: {{ include "resource.psp.name" . }}
+  annotations:
+    seccomp.security.alpha.kubernetes.io/allowedProfileNames: 'runtime/default'
   labels:
     {{- include "labels.common" . | nindent 4 }}
 spec:
@@ -23,6 +25,13 @@ spec:
     rule: RunAsAny
   supplementalGroups:
     rule: RunAsAny
+  volumes:
+  - emptyDir
+  - secret
+  - downwardAPI
+  - configMap
+  - persistentVolumeClaim
+  - projected
   allowPrivilegeEscalation: false
   hostNetwork: false
   hostIPC: false

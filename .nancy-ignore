@@ -1,22 +1,10 @@
-# Unresolved as of 2022/06/02
-CVE-2022-29153 until=2022-06-25
-sonatype-2021-1401 until=2022-06-25
-sonatype-2019-0890 until=2022-06-25
+# Non-CVE findings, added with 1 year of exception time.
+# If these stay open for more than a year, we might have unmaintained dependencies.
+sonatype-2021-1401 until=2024-03-14
+sonatype-2022-6522 until=2024-03-14
 
-
-CVE-2021-3127 until=2023-02-03
-CVE-2021-41803 until=2023-02-03
-CVE-2022-21698 until=2023-02-03
-CVE-2022-24450 until=2023-02-03
-CVE-2022-24687 until=2023-02-03
-CVE-2022-26652 until=2023-02-03
-CVE-2022-28357 until=2023-02-03
-CVE-2022-29153 until=2023-02-03
-CVE-2022-29946 until=2023-02-03
-CVE-2022-32149 until=2023-02-03
-CVE-2022-42708 until=2023-02-03
-CVE-2022-42709 until=2023-02-03
-sonatype-2019-0890 until=2023-02-03
-sonatype-2019-0890 until=2023-02-03
-sonatype-2021-1401 until=2023-02-03
-sonatype-2022-6522 until=2023-02-03
+# hashicorp/consul/sdk and /api are not intended for public use and won't receive future releases.
+# Waiting for upstream to move away from it.
+CVE-2021-41803 until=2024-03-14
+CVE-2022-29153 until=2024-03-14
+CVE-2022-24687 until=2024-03-14

@@ -1,14 +1,15 @@
 module github.com/giantswarm/cluster-cleaner
 
-go 1.18
+go 1.19
 
 require (
-	github.com/giantswarm/apiextensions-application v0.3.1
-	github.com/giantswarm/k8smetadata v0.11.0
+	github.com/giantswarm/apiextensions-application v0.6.0
+	github.com/giantswarm/k8smetadata v0.20.0
 	github.com/go-logr/logr v1.2.3
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.12.2
 	github.com/stretchr/testify v1.7.1
+	golang.org/x/text v0.8.0
 	k8s.io/api v0.24.1
 	k8s.io/apimachinery v0.24.1
 	k8s.io/client-go v0.24.1
@@ -64,7 +65,6 @@ require (
 	golang.org/x/oauth2 v0.0.0-20220524215830-622c5d57e401 // indirect
 	golang.org/x/sys v0.5.0 // indirect
 	golang.org/x/term v0.0.0-20220526004731-065cf7ba2467 // indirect
-	golang.org/x/text v0.8.0 // indirect
 	golang.org/x/time v0.0.0-20220411224347-583f2d630306 // indirect
 	gomodules.xyz/jsonpatch/v2 v2.2.0 // indirect
 	google.golang.org/appengine v1.6.7 // indirect

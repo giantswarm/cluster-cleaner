@@ -35,6 +35,7 @@ spec:
         - /manager
         args:
         - --dry-run={{ .Values.dryRun }}
+        - --capi-provider={{ .Values.capiProvider }}
         ports:
         - containerPort: 8080
           name: metrics

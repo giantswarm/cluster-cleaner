@@ -150,7 +150,6 @@ func (r *ClusterReconciler) reconcile(ctx context.Context, cluster *capi.Cluster
 								},
 								DeleteOptions: client.DeleteOptions{
 									PropagationPolicy: &propagationPolicy,
-									DryRun:            []string{"All"},
 								},
 							})
 							if err != nil {
@@ -172,7 +171,6 @@ func (r *ClusterReconciler) reconcile(ctx context.Context, cluster *capi.Cluster
 								},
 								DeleteOptions: client.DeleteOptions{
 									PropagationPolicy: &propagationPolicy,
-									DryRun:            []string{"All"},
 								},
 							})
 							if err != nil {
@@ -194,7 +192,6 @@ func (r *ClusterReconciler) reconcile(ctx context.Context, cluster *capi.Cluster
 								},
 								DeleteOptions: client.DeleteOptions{
 									PropagationPolicy: &propagationPolicy,
-									DryRun:            []string{"All"},
 								},
 							})
 							if err != nil {

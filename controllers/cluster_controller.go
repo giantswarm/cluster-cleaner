@@ -207,9 +207,6 @@ func (r *ClusterReconciler) reconcile(ctx context.Context, cluster *capi.Cluster
 
 						return ctrl.Result{}, nil
 					}
-
-					// We have a cluster that no longer has an associated app
-					// so we'll fall through to deleting the Cluster resource
 				}
 			}
 		} else {

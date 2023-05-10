@@ -140,8 +140,8 @@ func (r *ClusterReconciler) reconcile(ctx context.Context, cluster *capi.Cluster
 						// Delete Cluster App CR
 						clusterAppSelector := labels.NewSelector()
 						clusterAppNameReq, _ := labels.NewRequirement(label.AppName, selection.In, []string{fmt.Sprintf("cluster-%s", r.CApiProvider)})
-						fluxLabelByReq, _ := labels.NewRequirement(fluxLabel, selection.NotEquals, []string{"flux"})
-						clusterAppSelector = clusterAppSelector.Add(*clusterAppNameReq, *fluxLabelByReq)
+						fluxLabelReq, _ := labels.NewRequirement(fluxLabel, selection.NotEquals, []string{"flux"})
+						clusterAppSelector = clusterAppSelector.Add(*clusterAppNameReq, *fluxLabelReq)
 						{
 							err := r.Client.DeleteAllOf(ctx, &gsapplication.App{}, &client.DeleteAllOfOptions{
 								ListOptions: client.ListOptions{
@@ -161,8 +161,10 @@ func (r *ClusterReconciler) reconcile(ctx context.Context, cluster *capi.Cluster
 
 						// Delete Default Apps CR
 						defaultAppSelector := labels.NewSelector()
+						clusterNameReq, _ := labels.NewRequirement(label.Cluster, selection.In, []string{cluster.Name})
 						defaultAppNameReq, _ := labels.NewRequirement(label.AppName, selection.In, []string{fmt.Sprintf("default-apps-%s", r.CApiProvider)})
-						defaultAppSelector = defaultAppSelector.Add(*defaultAppNameReq, *fluxLabelByReq)
+						managedByClusterReq, _ := labels.NewRequirement(label.ManagedBy, selection.In, []string{"cluster"})
+						defaultAppSelector = defaultAppSelector.Add(*clusterNameReq, *defaultAppNameReq, *managedByClusterReq)
 						{
 							err := r.Client.DeleteAllOf(ctx, &gsapplication.App{}, &client.DeleteAllOfOptions{
 								ListOptions: client.ListOptions{
@@ -182,8 +184,7 @@ func (r *ClusterReconciler) reconcile(ctx context.Context, cluster *capi.Cluster
 
 						// Delete ConfigMaps
 						configMapSelector := labels.NewSelector()
-						clusterNameReq, _ := labels.NewRequirement(label.Cluster, selection.In, []string{cluster.Name})
-						configMapSelector = configMapSelector.Add(*clusterNameReq, *fluxLabelByReq)
+						configMapSelector = configMapSelector.Add(*clusterNameReq)
 						{
 							err := r.Client.DeleteAllOf(ctx, &corev1.ConfigMap{}, &client.DeleteAllOfOptions{
 								ListOptions: client.ListOptions{

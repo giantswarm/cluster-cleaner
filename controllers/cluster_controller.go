@@ -69,6 +69,7 @@ func (r *ClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 }
 
 func (r *ClusterReconciler) reconcile(ctx context.Context, cluster *capi.Cluster, log logr.Logger) (ctrl.Result, error) {
+	// ignore GitOps-managed resources, ensure MC itself doesn't commit suicide
 	if _, ok := cluster.Labels[fluxLabel]; ok {
 		IgnoredTotal.WithLabelValues(cluster.Name, cluster.Namespace).Inc()
 		log.Info(fmt.Sprintf("Found label %s. Cluster %s/%s will be ignored for deletion", fluxLabel, cluster.Namespace, cluster.Name))
@@ -131,13 +132,14 @@ func (r *ClusterReconciler) reconcile(ctx context.Context, cluster *capi.Cluster
 					if err != nil && !apierrors.IsNotFound(err) {
 						return ctrl.Result{}, err
 					} else if err == nil {
+						// ignore GitOps-managed resources, ensure MC itself doesn't commit suicide
 						if _, ok := app.Labels[fluxLabel]; ok {
 							IgnoredTotal.WithLabelValues(cluster.Name, cluster.Namespace).Inc()
 							log.Info(fmt.Sprintf("Found label %s in App CR. Cluster %s/%s will be ignored for deletion", fluxLabel, cluster.Namespace, cluster.Name))
 							return ctrl.Result{}, nil
 						}
 
-						// Delete Cluster App CR
+						// delete Cluster App CR
 						clusterAppSelector := labels.NewSelector()
 						clusterAppNameReq, _ := labels.NewRequirement(label.AppName, selection.In, []string{fmt.Sprintf("cluster-%s", r.CApiProvider)})
 						fluxLabelReq, _ := labels.NewRequirement(fluxLabel, selection.NotEquals, []string{"flux"})
@@ -159,7 +161,7 @@ func (r *ClusterReconciler) reconcile(ctx context.Context, cluster *capi.Cluster
 							}
 						}
 
-						// Delete Default Apps CR
+						// delete Default Apps CR
 						defaultAppSelector := labels.NewSelector()
 						clusterNameReq, _ := labels.NewRequirement(label.Cluster, selection.In, []string{cluster.Name})
 						defaultAppNameReq, _ := labels.NewRequirement(label.AppName, selection.In, []string{fmt.Sprintf("default-apps-%s", r.CApiProvider)})
@@ -182,7 +184,7 @@ func (r *ClusterReconciler) reconcile(ctx context.Context, cluster *capi.Cluster
 							}
 						}
 
-						// Delete ConfigMaps
+						// delete ConfigMaps
 						configMapSelector := labels.NewSelector()
 						configMapSelector = configMapSelector.Add(*clusterNameReq)
 						{

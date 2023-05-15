@@ -139,6 +139,11 @@ func (r *ClusterReconciler) reconcile(ctx context.Context, cluster *capi.Cluster
 				log.Info(fmt.Sprintf("Cluster %s/%s was deleted", cluster.Namespace, cluster.Name))
 				SuccessTotal.WithLabelValues(cluster.Name, cluster.Namespace).Inc()
 			} else {
+				// CAPA uses cluster-aws
+				if provider == "capa" {
+					provider = "aws"
+				}
+
 				// CAPI-based cluster
 				if hasChartAnnotations(cluster) {
 					app := &gsapplication.App{}

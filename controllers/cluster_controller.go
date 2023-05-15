@@ -31,19 +31,31 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/selection"
+	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/yaml"
 	"k8s.io/client-go/tools/record"
 	capi "sigs.k8s.io/cluster-api/api/v1beta1"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
+// ClusterAppsOperator ConfigMap
+type Provider struct {
+	Kind string `yaml:"kind"`
+}
+type Service struct {
+	Provider Provider `yaml:"provider"`
+}
+type ClusterAppsConfig struct {
+	Service Service `yaml:"service"`
+}
+
 // ClusterReconciler reconciles a Cluster object
 type ClusterReconciler struct {
 	client.Client
-	Log          logr.Logger
-	Scheme       *runtime.Scheme
-	DryRun       bool
-	CApiProvider string
+	Log    logr.Logger
+	Scheme *runtime.Scheme
+	DryRun bool
 
 	recorder record.EventRecorder
 }
@@ -69,6 +81,12 @@ func (r *ClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 }
 
 func (r *ClusterReconciler) reconcile(ctx context.Context, cluster *capi.Cluster, log logr.Logger) (ctrl.Result, error) {
+	err, provider := r.getClusterProvider(ctx)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+	log.Info(fmt.Sprintf("Cluster %s/%s provider is %s", cluster.Namespace, cluster.Name, provider))
+
 	// ignore GitOps-managed resources, ensure MC itself doesn't commit suicide
 	if _, ok := cluster.Labels[fluxLabel]; ok {
 		IgnoredTotal.WithLabelValues(cluster.Name, cluster.Namespace).Inc()
@@ -110,23 +128,19 @@ func (r *ClusterReconciler) reconcile(ctx context.Context, cluster *capi.Cluster
 		propagationPolicy := metav1.DeletePropagationBackground
 
 		if !r.DryRun {
-			if r.CApiProvider == "" {
-				if !hasChartAnnotations(cluster) {
-					err := r.Client.Delete(ctx, cluster, client.PropagationPolicy(propagationPolicy))
-					if err != nil {
-						log.Error(err, fmt.Sprintf("unable to delete cluster %s/%s", cluster.Namespace, cluster.Name))
-						ErrorsTotal.WithLabelValues(cluster.Name, cluster.Namespace).Inc()
-						return requeue(), nil
-					}
-					log.Info(fmt.Sprintf("Cluster %s/%s was deleted", cluster.Namespace, cluster.Name))
-					SuccessTotal.WithLabelValues(cluster.Name, cluster.Namespace).Inc()
-				} else {
-					log.Info("CAPI cluster detected, ignoring")
+			// vintage cluster
+			if provider == "aws" {
+				err := r.Client.Delete(ctx, cluster, client.PropagationPolicy(propagationPolicy))
+				if err != nil {
+					log.Error(err, fmt.Sprintf("unable to delete cluster %s/%s", cluster.Namespace, cluster.Name))
+					ErrorsTotal.WithLabelValues(cluster.Name, cluster.Namespace).Inc()
+					return requeue(), nil
 				}
+				log.Info(fmt.Sprintf("Cluster %s/%s was deleted", cluster.Namespace, cluster.Name))
+				SuccessTotal.WithLabelValues(cluster.Name, cluster.Namespace).Inc()
 			} else {
+				// CAPI-based cluster
 				if hasChartAnnotations(cluster) {
-					log.Info(fmt.Sprintf("Provider = %s", r.CApiProvider))
-
 					app := &gsapplication.App{}
 					err := r.Client.Get(ctx, getClusterAppNamespacedName(cluster), app)
 					if err != nil && !apierrors.IsNotFound(err) {
@@ -139,9 +153,11 @@ func (r *ClusterReconciler) reconcile(ctx context.Context, cluster *capi.Cluster
 							return ctrl.Result{}, nil
 						}
 
+						log.Info(fmt.Sprintf("Cluster %s/%s has exceeded the default time to live (%s) and will be deleted", cluster.Namespace, cluster.Name, defaultTTL))
+
 						// delete Cluster App CR
 						clusterAppSelector := labels.NewSelector()
-						clusterAppNameReq, _ := labels.NewRequirement(label.AppName, selection.In, []string{fmt.Sprintf("cluster-%s", r.CApiProvider)})
+						clusterAppNameReq, _ := labels.NewRequirement(label.AppName, selection.In, []string{fmt.Sprintf("cluster-%s", provider)})
 						fluxLabelReq, _ := labels.NewRequirement(fluxLabel, selection.NotEquals, []string{"flux"})
 						clusterAppSelector = clusterAppSelector.Add(*clusterAppNameReq, *fluxLabelReq)
 						{
@@ -164,7 +180,7 @@ func (r *ClusterReconciler) reconcile(ctx context.Context, cluster *capi.Cluster
 						// delete Default Apps CR
 						defaultAppSelector := labels.NewSelector()
 						clusterNameReq, _ := labels.NewRequirement(label.Cluster, selection.In, []string{cluster.Name})
-						defaultAppNameReq, _ := labels.NewRequirement(label.AppName, selection.In, []string{fmt.Sprintf("default-apps-%s", r.CApiProvider)})
+						defaultAppNameReq, _ := labels.NewRequirement(label.AppName, selection.In, []string{fmt.Sprintf("default-apps-%s", provider)})
 						managedByClusterReq, _ := labels.NewRequirement(label.ManagedBy, selection.In, []string{"cluster"})
 						defaultAppSelector = defaultAppSelector.Add(*clusterNameReq, *defaultAppNameReq, *managedByClusterReq)
 						{
@@ -209,6 +225,9 @@ func (r *ClusterReconciler) reconcile(ctx context.Context, cluster *capi.Cluster
 
 						return ctrl.Result{}, nil
 					}
+				} else {
+					// CAPI-based cluster but without Helm annotation? weird! should not happen; if do, we have it in the log.
+					log.Info(fmt.Sprintf("Chart annotation not found for CAPI-based cluster. Cluster %s/%s will be ignored for deletion", cluster.Namespace, cluster.Name))
 				}
 			}
 		} else {
@@ -249,4 +268,22 @@ func (r *ClusterReconciler) SetupWithManager(mgr ctrl.Manager) error {
 
 func (r *ClusterReconciler) submitClusterDeletionEvent(cluster *capi.Cluster, message string) {
 	r.recorder.Eventf(cluster, corev1.EventTypeNormal, "ClusterMarkedForDeletion", message)
+}
+
+func (r *ClusterReconciler) getClusterProvider(ctx context.Context) (error, string) {
+	var c ClusterAppsConfig
+	cm := &corev1.ConfigMap{}
+	err := r.Client.Get(ctx, types.NamespacedName{
+		Name:      "cluster-apps-operator",
+		Namespace: "giantswarm",
+	}, cm)
+	if err != nil && !apierrors.IsNotFound(err) {
+		return err, ""
+	}
+	data := cm.Data["config.yaml"]
+	err = yaml.Unmarshal([]byte(data), &c)
+	if err != nil {
+		return err, ""
+	}
+	return nil, c.Service.Provider.Kind
 }

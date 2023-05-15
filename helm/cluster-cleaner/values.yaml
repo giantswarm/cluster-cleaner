@@ -8,7 +8,6 @@ registry:
   domain: docker.io
 
 dryRun: false
-capiProvider: ""
 
 pod:
   user:

@@ -53,6 +53,9 @@ func TestClusterController(t *testing.T) {
 					CreationTimestamp: metav1.Time{
 						Time: time.Now().Add(-defaultTTL),
 					},
+					Labels: map[string]string{
+						"release.giantswarm.io/version": "18.2.1",
+					},
 					Annotations: map[string]string{},
 					Finalizers: []string{
 						"operatorkit.giantswarm.io/cluster-operator-cluster-controller",
@@ -184,7 +187,8 @@ func TestClusterController(t *testing.T) {
 					},
 					Annotations: map[string]string{},
 					Labels: map[string]string{
-						keepUntil: "2020-12-08",
+						keepUntil:                       "2020-12-08",
+						"release.giantswarm.io/version": "18.2.1",
 					},
 					Finalizers: []string{
 						"operatorkit.giantswarm.io/cluster-operator-cluster-controller",
@@ -346,6 +350,9 @@ func TestClusterAppDeletion(t *testing.T) {
 					Namespace: "default",
 					CreationTimestamp: metav1.Time{
 						Time: time.Now().Add(-defaultTTL),
+					},
+					Labels: map[string]string{
+						"release.giantswarm.io/version": "18.2.1",
 					},
 					Annotations: map[string]string{
 						helmReleaseNameAnnotation:      "test",

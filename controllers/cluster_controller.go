@@ -81,7 +81,7 @@ func (r *ClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 }
 
 func (r *ClusterReconciler) reconcile(ctx context.Context, cluster *capi.Cluster, log logr.Logger) (ctrl.Result, error) {
-	err, provider := r.getClusterProvider(ctx)
+	provider, err := r.getClusterProvider(ctx)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
@@ -253,7 +253,7 @@ func (r *ClusterReconciler) submitClusterDeletionEvent(cluster *capi.Cluster, me
 	r.recorder.Eventf(cluster, corev1.EventTypeNormal, "ClusterMarkedForDeletion", message)
 }
 
-func (r *ClusterReconciler) getClusterProvider(ctx context.Context) (error, string) {
+func (r *ClusterReconciler) getClusterProvider(ctx context.Context) (string, error) {
 	var c ClusterAppsConfig
 	cm := &corev1.ConfigMap{}
 	err := r.Client.Get(ctx, types.NamespacedName{
@@ -261,12 +261,12 @@ func (r *ClusterReconciler) getClusterProvider(ctx context.Context) (error, stri
 		Namespace: "giantswarm",
 	}, cm)
 	if err != nil && !apierrors.IsNotFound(err) {
-		return err, ""
+		return "", err
 	}
 	data := cm.Data["config.yaml"]
 	err = yaml.Unmarshal([]byte(data), &c)
 	if err != nil {
-		return err, ""
+		return "", err
 	}
-	return nil, c.Service.Provider.Kind
+	return c.Service.Provider.Kind, nil
 }

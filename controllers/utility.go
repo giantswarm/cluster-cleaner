@@ -61,13 +61,6 @@ func hasChartAnnotations(cluster *capi.Cluster) bool {
 	return nameOK && namespaceOK && releaseName != "" && releaseNamespace != ""
 }
 
-func getChartNamespacedName(cluster *capi.Cluster) client.ObjectKey {
-	return client.ObjectKey{
-		Name:      cluster.ObjectMeta.Annotations[helmReleaseNameAnnotation],
-		Namespace: cluster.ObjectMeta.Annotations[helmReleaseNamespaceAnnotation],
-	}
-}
-
 func getClusterAppNamespacedName(cluster *capi.Cluster) client.ObjectKey {
 	return client.ObjectKey{
 		Name:      cluster.ObjectMeta.Annotations[helmReleaseNameAnnotation],

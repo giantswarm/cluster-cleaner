@@ -203,7 +203,6 @@ func (r *ClusterReconciler) reconcile(ctx context.Context, cluster *capi.Cluster
 				},
 				DeleteOptions: client.DeleteOptions{
 					PropagationPolicy: &propagationPolicy,
-					DryRun:            []string{"All"},
 				},
 			}); err != nil {
 				log.Error(err, fmt.Sprintf("unable to delete ConfigMaps for cluster %s/%s", cluster.Namespace, cluster.Name))

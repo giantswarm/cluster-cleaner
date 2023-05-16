@@ -130,6 +130,7 @@ func (r *ClusterReconciler) reconcile(ctx context.Context, cluster *capi.Cluster
 		if !r.DryRun {
 			// vintage cluster
 			if provider == "aws" {
+				log.Info(fmt.Sprintf("Cluster %s/%s is being deleted", cluster.Namespace, cluster.Name))
 				if err := r.Client.Delete(ctx, cluster, client.PropagationPolicy(propagationPolicy)); err != nil {
 					log.Error(err, fmt.Sprintf("unable to delete cluster %s/%s", cluster.Namespace, cluster.Name))
 					ErrorsTotal.WithLabelValues(cluster.Name, cluster.Namespace).Inc()
@@ -164,12 +165,13 @@ func (r *ClusterReconciler) reconcile(ctx context.Context, cluster *capi.Cluster
 			log.Info(fmt.Sprintf("Cluster %s/%s has exceeded the default time to live (%s) and will be deleted", cluster.Namespace, cluster.Name, defaultTTL))
 
 			// delete App CR for the cluster
+			log.Info(fmt.Sprintf("App %s/%s is being deleted", app.Name, app.Namespace))
 			if err := r.Client.Delete(ctx, app, client.PropagationPolicy(propagationPolicy)); err != nil {
 				log.Error(err, fmt.Sprintf("unable to delete App CR for cluster %s/%s", cluster.Namespace, cluster.Name))
 				ErrorsTotal.WithLabelValues(cluster.Name, cluster.Namespace).Inc()
 				return requeue(), nil
 			}
-			log.Info(fmt.Sprintf("Cluster %s/%s app was deleted", cluster.Namespace, cluster.Name))
+			log.Info(fmt.Sprintf("App %s/%s was deleted", app.Name, app.Namespace))
 
 			// delete default-apps App CR for the cluster
 			defaultApp := &gsapplication.App{}
@@ -181,12 +183,14 @@ func (r *ClusterReconciler) reconcile(ctx context.Context, cluster *capi.Cluster
 				ErrorsTotal.WithLabelValues(cluster.Name, cluster.Namespace).Inc()
 				return requeue(), nil
 			}
+			log.Info(fmt.Sprintf("App %s/%s is being deleted", defaultApp.Name, defaultApp.Namespace))
+
 			if err := r.Client.Delete(ctx, defaultApp, client.PropagationPolicy(propagationPolicy)); err != nil {
 				log.Error(err, fmt.Sprintf("unable to delete default-apps App CR for cluster %s/%s", cluster.Namespace, cluster.Name))
 				ErrorsTotal.WithLabelValues(cluster.Name, cluster.Namespace).Inc()
 				return requeue(), nil
 			}
-			log.Info(fmt.Sprintf("Cluster %s/%s default-apps was deleted", cluster.Namespace, cluster.Name))
+			log.Info(fmt.Sprintf("App %s/%s was deleted", defaultApp.Name, defaultApp.Namespace))
 
 			// delete config maps for the cluster
 			cmSelector := labels.NewSelector()
@@ -199,6 +203,7 @@ func (r *ClusterReconciler) reconcile(ctx context.Context, cluster *capi.Cluster
 				},
 				DeleteOptions: client.DeleteOptions{
 					PropagationPolicy: &propagationPolicy,
+					DryRun:            []string{"All"},
 				},
 			}); err != nil {
 				log.Error(err, fmt.Sprintf("unable to delete ConfigMaps for cluster %s/%s", cluster.Namespace, cluster.Name))

@@ -31,24 +31,11 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/selection"
-	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/apimachinery/pkg/util/yaml"
 	"k8s.io/client-go/tools/record"
 	capi "sigs.k8s.io/cluster-api/api/v1beta1"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
-
-// ClusterAppsOperator ConfigMap
-type Provider struct {
-	Kind string `yaml:"kind"`
-}
-type Service struct {
-	Provider Provider `yaml:"provider"`
-}
-type ClusterAppsConfig struct {
-	Service Service `yaml:"service"`
-}
 
 // ClusterReconciler reconciles a Cluster object
 type ClusterReconciler struct {
@@ -81,12 +68,6 @@ func (r *ClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 }
 
 func (r *ClusterReconciler) reconcile(ctx context.Context, cluster *capi.Cluster, log logr.Logger) (ctrl.Result, error) {
-	provider, err := r.getClusterProvider(ctx)
-	if err != nil {
-		return ctrl.Result{}, err
-	}
-	log.Info(fmt.Sprintf("Cluster %s/%s provider is %s", cluster.Namespace, cluster.Name, provider))
-
 	// ignore GitOps-managed resources, ensure MC itself doesn't commit suicide
 	if _, ok := cluster.Labels[fluxLabel]; ok {
 		IgnoredTotal.WithLabelValues(cluster.Name, cluster.Namespace).Inc()
@@ -123,13 +104,20 @@ func (r *ClusterReconciler) reconcile(ctx context.Context, cluster *capi.Cluster
 		return ctrl.Result{}, nil
 	}
 
+	isVintage := false
+	if _, ok := cluster.Labels[vintageReleaseVersion]; ok {
+		isVintage = true
+	}
+
+	log.Info(fmt.Sprintf("isVintage = %v", isVintage))
+
 	// immediately delete the cluster if defaultTTL has passed
 	if deletionTimeReached(cluster) {
 		propagationPolicy := metav1.DeletePropagationBackground
 
 		if !r.DryRun {
 			// vintage cluster
-			if provider == "aws" {
+			if isVintage {
 				log.Info(fmt.Sprintf("Cluster %s/%s is being deleted", cluster.Namespace, cluster.Name))
 				if err := r.Client.Delete(ctx, cluster, client.PropagationPolicy(propagationPolicy)); err != nil {
 					log.Error(err, fmt.Sprintf("unable to delete cluster %s/%s", cluster.Namespace, cluster.Name))
@@ -251,22 +239,4 @@ func (r *ClusterReconciler) SetupWithManager(mgr ctrl.Manager) error {
 
 func (r *ClusterReconciler) submitClusterDeletionEvent(cluster *capi.Cluster, message string) {
 	r.recorder.Eventf(cluster, corev1.EventTypeNormal, "ClusterMarkedForDeletion", message)
-}
-
-func (r *ClusterReconciler) getClusterProvider(ctx context.Context) (string, error) {
-	var c ClusterAppsConfig
-	cm := &corev1.ConfigMap{}
-	err := r.Client.Get(ctx, types.NamespacedName{
-		Name:      "cluster-apps-operator",
-		Namespace: "giantswarm",
-	}, cm)
-	if err != nil && !apierrors.IsNotFound(err) {
-		return "", err
-	}
-	data := cm.Data["config.yaml"]
-	err = yaml.Unmarshal([]byte(data), &c)
-	if err != nil {
-		return "", err
-	}
-	return c.Service.Provider.Kind, nil
 }

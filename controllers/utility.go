@@ -72,7 +72,7 @@ func getClusterAppNamespacedName(cluster *capi.Cluster) client.ObjectKey {
 
 func getDefaultAppNamespacedName(cluster *capi.Cluster) client.ObjectKey {
 	return client.ObjectKey{
-		Name:      fmt.Sprintf("%s-default-apps", cluster.ObjectMeta.Annotations[helmReleaseNameAnnotation]),
+		Name:      fmt.Sprintf("%s-default-apps", cluster.Name),
 		Namespace: cluster.ObjectMeta.Annotations[helmReleaseNamespaceAnnotation],
 	}
 }

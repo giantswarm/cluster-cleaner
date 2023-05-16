@@ -412,7 +412,7 @@ func TestClusterAppDeletion(t *testing.T) {
 					expectedDeletion: true,
 					app: &gsapplication.App{
 						ObjectMeta: metav1.ObjectMeta{
-							Name:      "default-apps",
+							Name:      "test-default-apps",
 							Namespace: "default",
 							Labels: map[string]string{
 								label.Cluster: "test",

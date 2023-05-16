@@ -42,7 +42,7 @@ func TestClusterController(t *testing.T) {
 	}{
 		// cluster marked for deletion
 		{
-			name:                   "case 0",
+			name:                   "case 0 - vintage",
 			expectedDeletion:       true,
 			expectedEventTriggered: false,
 
@@ -173,7 +173,7 @@ func TestClusterController(t *testing.T) {
 		},
 		// keep-until label has expired and cluster will be deleted
 		{
-			name:                   "case 6",
+			name:                   "case 6 - vintage",
 			dryRun:                 false,
 			expectedDeletion:       true,
 			expectedEventTriggered: false,
@@ -341,7 +341,7 @@ func TestClusterAppDeletion(t *testing.T) {
 		},
 		// cluster marked for deletion
 		{
-			name:                    "case 2 - cluster delete",
+			name:                    "case 2 - vintage cluster delete",
 			expectedClusterDeletion: true,
 
 			cluster: &capi.Cluster{

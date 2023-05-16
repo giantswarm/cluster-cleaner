@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"fmt"
 	"time"
 
 	capi "sigs.k8s.io/cluster-api/api/v1beta1"
@@ -70,6 +71,13 @@ func getChartNamespacedName(cluster *capi.Cluster) client.ObjectKey {
 func getClusterAppNamespacedName(cluster *capi.Cluster) client.ObjectKey {
 	return client.ObjectKey{
 		Name:      cluster.ObjectMeta.Annotations[helmReleaseNameAnnotation],
+		Namespace: cluster.ObjectMeta.Annotations[helmReleaseNamespaceAnnotation],
+	}
+}
+
+func getDefaultAppNamespacedName(cluster *capi.Cluster) client.ObjectKey {
+	return client.ObjectKey{
+		Name:      fmt.Sprintf("%s-default-apps", cluster.ObjectMeta.Annotations[helmReleaseNameAnnotation]),
 		Namespace: cluster.ObjectMeta.Annotations[helmReleaseNamespaceAnnotation],
 	}
 }

@@ -226,9 +226,7 @@ func deleteClusterApp(ctx context.Context, log logr.Logger, client ctrlclient.Cl
 		ErrorsTotal.WithLabelValues(cluster.Name, cluster.Namespace).Inc()
 		return err
 	}
-	log.Info("Cluster configmaps was deleted")
-
-	log.Info("Cluster was deleted")
+	log.Info("Cluster apps and configmaps were deleted")
 
 	SuccessTotal.WithLabelValues(cluster.Name, cluster.Namespace).Inc()
 

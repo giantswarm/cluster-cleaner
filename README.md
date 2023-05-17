@@ -2,7 +2,7 @@
 
 # cluster-cleaner
 
-This operator is intended to automate deletion of giant swarm workload test clusters. By default your cluster will be deleted after 10 hours.
+This operator is intended to automate deletion of giant swarm workload test clusters. By default your cluster will be deleted after default TTL is reached (4 hours).
 
 ## how to prevent cluster from being deleted
 

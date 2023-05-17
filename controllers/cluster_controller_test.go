@@ -196,6 +196,56 @@ func TestClusterController(t *testing.T) {
 				},
 			},
 		},
+		// cluster managed by Flux shouldn't ever be deleted
+		{
+			name:                   "case 7 - vintage",
+			dryRun:                 false,
+			expectedDeletion:       false,
+			expectedEventTriggered: false,
+
+			cluster: &capi.Cluster{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test",
+					Namespace: "default",
+					CreationTimestamp: metav1.Time{
+						Time: time.Now().Add(-defaultTTL),
+					},
+					Annotations: map[string]string{
+						"kustomize.toolkit.fluxcd.io/name": "flux",
+					},
+					Labels: map[string]string{
+						"release.giantswarm.io/version": "18.2.1",
+					},
+					Finalizers: []string{
+						"operatorkit.giantswarm.io/cluster-operator-cluster-controller",
+					},
+				},
+			},
+		},
+		// cluster managed by Flux shouldn't ever be deleted
+		{
+			name:                   "case 8 - capi",
+			dryRun:                 false,
+			expectedDeletion:       false,
+			expectedEventTriggered: false,
+
+			cluster: &capi.Cluster{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test",
+					Namespace: "default",
+					CreationTimestamp: metav1.Time{
+						Time: time.Now().Add(-defaultTTL),
+					},
+					Annotations: map[string]string{
+						"kustomize.toolkit.fluxcd.io/name": "flux",
+					},
+					Labels: map[string]string{},
+					Finalizers: []string{
+						"operatorkit.giantswarm.io/cluster-operator-cluster-controller",
+					},
+				},
+			},
+		},
 	}
 	for i, tc := range testCases {
 		t.Run(strconv.Itoa(i), func(t *testing.T) {

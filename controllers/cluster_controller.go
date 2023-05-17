@@ -113,11 +113,11 @@ func (r *ClusterReconciler) reconcile(ctx context.Context, cluster *capi.Cluster
 				if err != nil {
 					return ctrl.Result{}, err
 				}
-			}
-
-			err := deleteClusterApp(ctx, log, r.Client, cluster)
-			if err != nil {
-				return ctrl.Result{}, err
+			} else {
+				err := deleteClusterApp(ctx, log, r.Client, cluster)
+				if err != nil {
+					return ctrl.Result{}, err
+				}
 			}
 		} else {
 			log.Info(fmt.Sprintf("DryRun: skipping sending deletion event for cluster %s/%s", cluster.Namespace, cluster.Name))

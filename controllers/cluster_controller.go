@@ -71,21 +71,21 @@ func (r *ClusterReconciler) reconcile(ctx context.Context, cluster *capi.Cluster
 	// ignore cluster deletion if timestamp is not nil or zero
 	if !cluster.DeletionTimestamp.IsZero() {
 		PendingTotal.WithLabelValues(cluster.Name, cluster.Namespace).Inc()
-		log.Info(fmt.Sprintf("Deletion for cluster %s/%s is already applied", cluster.Namespace, cluster.Name))
+		log.Info("Deletion for cluster is already applied")
 		return ctrl.Result{}, nil
 	}
 
 	// ignore GitOps-managed resources
 	if _, ok := cluster.Labels[fluxLabel]; ok {
 		IgnoredTotal.WithLabelValues(cluster.Name, cluster.Namespace).Inc()
-		log.Info(fmt.Sprintf("Found label %s. Cluster %s/%s will be ignored for deletion", fluxLabel, cluster.Namespace, cluster.Name))
+		log.Info("Found label %s. Cluster will be ignored for deletion", fluxLabel)
 		return ctrl.Result{}, nil
 	}
 
 	// ignore cluster from being deleted if ignore annotation is set
 	if _, ok := cluster.Annotations[ignoreClusterDeletion]; ok {
 		IgnoredTotal.WithLabelValues(cluster.Name, cluster.Namespace).Inc()
-		log.Info(fmt.Sprintf("Found annotation %s. Cluster %s/%s will be ignored for deletion", ignoreClusterDeletion, cluster.Namespace, cluster.Name))
+		log.Info("Found annotation %s. Cluster will be ignored for deletion", ignoreClusterDeletion)
 		return ctrl.Result{}, nil
 	}
 
@@ -94,12 +94,12 @@ func (r *ClusterReconciler) reconcile(ctx context.Context, cluster *capi.Cluster
 		t, err := time.Parse(keepUntilTimeLayout, v)
 		if err != nil {
 			ErrorsTotal.WithLabelValues(cluster.Name, cluster.Namespace).Inc()
-			log.Error(err, fmt.Sprintf("failed to parse keep-until label value for cluster %s/%s", cluster.Namespace, cluster.Name))
+			log.Error(err, "failed to parse keep-until label value for cluster")
 			return ctrl.Result{}, nil
 		}
 		if time.Now().UTC().Before(t) {
 			IgnoredTotal.WithLabelValues(cluster.Name, cluster.Namespace).Inc()
-			log.Info(fmt.Sprintf("Found label %s. Cluster %s/%s will be ignored for deletion", keepUntil, cluster.Namespace, cluster.Name))
+			log.Info("Found label %s. Cluster will be ignored for deletion", keepUntil)
 			return ctrl.Result{RequeueAfter: 24 * time.Hour}, nil
 		}
 	}
@@ -120,7 +120,7 @@ func (r *ClusterReconciler) reconcile(ctx context.Context, cluster *capi.Cluster
 				}
 			}
 		} else {
-			log.Info(fmt.Sprintf("DryRun: skipping sending deletion event for cluster %s/%s", cluster.Namespace, cluster.Name))
+			log.Info("DryRun: skipping sending deletion event for cluster")
 		}
 
 		return ctrl.Result{}, nil
@@ -129,10 +129,10 @@ func (r *ClusterReconciler) reconcile(ctx context.Context, cluster *capi.Cluster
 	// only send marked for deletion event if we still have ~1h before the cluster gets deleted
 	if deletionEventTimeReached(cluster) {
 		if !r.DryRun {
-			log.Info(fmt.Sprintf("Cluster %s/%s is marked for deletion", cluster.Namespace, cluster.Name))
-			r.submitClusterDeletionEvent(cluster, fmt.Sprintf("Cluster %s/%s will be deleted in aprox. %v min.", cluster.Namespace, cluster.Name, deletionTime(cluster)))
+			log.Info("Cluster is marked for deletion")
+			r.submitClusterDeletionEvent(cluster, fmt.Sprintf("Cluster will be deleted in aprox. %v min.", deletionTime(cluster)))
 		} else {
-			log.Info(fmt.Sprintf("DryRun: skipping sending deletion event for cluster %s/%s", cluster.Namespace, cluster.Name))
+			log.Info("DryRun: skipping sending deletion event for cluster")
 		}
 		return ctrl.Result{
 			RequeueAfter: 1 * time.Hour,
@@ -143,13 +143,13 @@ func (r *ClusterReconciler) reconcile(ctx context.Context, cluster *capi.Cluster
 }
 
 func deleteVintageCluster(ctx context.Context, log logr.Logger, client ctrlclient.Client, cluster *capi.Cluster) error {
-	log.Info(fmt.Sprintf("Cluster %s/%s is being deleted", cluster.Namespace, cluster.Name))
+	log.Info("Cluster is being deleted", cluster.Namespace, cluster.Name)
 	if err := client.Delete(ctx, cluster, ctrlclient.PropagationPolicy(metav1.DeletePropagationBackground)); err != nil {
-		log.Error(err, fmt.Sprintf("unable to delete cluster %s/%s", cluster.Namespace, cluster.Name))
+		log.Error(err, "unable to delete cluster")
 		ErrorsTotal.WithLabelValues(cluster.Name, cluster.Namespace).Inc()
 		return err
 	}
-	log.Info(fmt.Sprintf("Cluster %s/%s was deleted", cluster.Namespace, cluster.Name))
+	log.Info("Cluster was deleted")
 	SuccessTotal.WithLabelValues(cluster.Name, cluster.Namespace).Inc()
 	return nil
 }
@@ -158,7 +158,7 @@ func deleteClusterApp(ctx context.Context, log logr.Logger, client ctrlclient.Cl
 	// CAPI-based cluster but without Helm annotation? weird! should not happen; if do, we have log it
 	if !hasChartAnnotations(cluster) {
 		IgnoredTotal.WithLabelValues(cluster.Name, cluster.Namespace).Inc()
-		log.Info(fmt.Sprintf("Chart annotation not found for CAPI-based cluster. Cluster %s/%s will be ignored for deletion", cluster.Namespace, cluster.Name))
+		log.Info("Chart annotation not found for CAPI-based cluster. Cluster will be ignored for deletion")
 		return nil
 	}
 
@@ -167,23 +167,23 @@ func deleteClusterApp(ctx context.Context, log logr.Logger, client ctrlclient.Cl
 		if apierrors.IsNotFound(err) {
 			return nil
 		}
-		log.Error(err, fmt.Sprintf("unable to get app CR for cluster %s/%s", cluster.Namespace, cluster.Name))
+		log.Error(err, "Unable to get app CR for cluster")
 		ErrorsTotal.WithLabelValues(cluster.Name, cluster.Namespace).Inc()
 		return nil
 	}
 	// ignore GitOps-managed resources, ensure we're not deleting cluster app CR of MC itself
 	if _, ok := app.Labels[fluxLabel]; ok {
 		IgnoredTotal.WithLabelValues(cluster.Name, cluster.Namespace).Inc()
-		log.Info(fmt.Sprintf("Found label %s in App CR. Cluster %s/%s will be ignored for deletion", fluxLabel, cluster.Namespace, cluster.Name))
+		log.Info(fmt.Sprintf("Found label %s in App CR. Cluster will be ignored for deletion", fluxLabel))
 		return nil
 	}
 
-	log.Info(fmt.Sprintf("Cluster %s/%s has exceeded the default time to live (%s) and will be deleted", cluster.Namespace, cluster.Name, defaultTTL))
+	log.Info(fmt.Sprintf("Cluster has exceeded the default time to live (%s) and will be deleted", defaultTTL))
 
 	// delete App CR for the cluster
 	log.Info(fmt.Sprintf("App %s/%s is being deleted", app.Name, app.Namespace))
 	if err := client.Delete(ctx, app, ctrlclient.PropagationPolicy(metav1.DeletePropagationBackground)); err != nil {
-		log.Error(err, fmt.Sprintf("unable to delete App CR for cluster %s/%s", cluster.Namespace, cluster.Name))
+		log.Error(err, "unable to delete App CR for cluster")
 		ErrorsTotal.WithLabelValues(cluster.Name, cluster.Namespace).Inc()
 		return err
 	}
@@ -195,14 +195,14 @@ func deleteClusterApp(ctx context.Context, log logr.Logger, client ctrlclient.Cl
 		if apierrors.IsNotFound(err) {
 			return nil
 		}
-		log.Error(err, fmt.Sprintf("unable to get default-apps CR for cluster %s/%s", cluster.Namespace, cluster.Name))
+		log.Error(err, "unable to get default-apps CR for cluster")
 		ErrorsTotal.WithLabelValues(cluster.Name, cluster.Namespace).Inc()
 		return err
 	}
 	log.Info(fmt.Sprintf("App %s/%s is being deleted", defaultApp.Name, defaultApp.Namespace))
 
 	if err := client.Delete(ctx, defaultApp, ctrlclient.PropagationPolicy(metav1.DeletePropagationBackground)); err != nil {
-		log.Error(err, fmt.Sprintf("unable to delete default-apps App CR for cluster %s/%s", cluster.Namespace, cluster.Name))
+		log.Error(err, "unable to delete default-apps App CR for cluster")
 		ErrorsTotal.WithLabelValues(cluster.Name, cluster.Namespace).Inc()
 		return err
 	}
@@ -222,13 +222,13 @@ func deleteClusterApp(ctx context.Context, log logr.Logger, client ctrlclient.Cl
 			PropagationPolicy: &propagationPolicy,
 		},
 	}); err != nil {
-		log.Error(err, fmt.Sprintf("unable to delete ConfigMaps for cluster %s/%s", cluster.Namespace, cluster.Name))
+		log.Error(err, "unable to delete ConfigMaps for cluster")
 		ErrorsTotal.WithLabelValues(cluster.Name, cluster.Namespace).Inc()
 		return err
 	}
-	log.Info(fmt.Sprintf("Cluster %s/%s configmaps was deleted", cluster.Namespace, cluster.Name))
+	log.Info("Cluster configmaps was deleted")
 
-	log.Info(fmt.Sprintf("Cluster %s/%s was deleted", cluster.Namespace, cluster.Name))
+	log.Info("Cluster was deleted")
 
 	SuccessTotal.WithLabelValues(cluster.Name, cluster.Namespace).Inc()
 

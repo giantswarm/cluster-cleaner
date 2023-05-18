@@ -2,7 +2,7 @@
 
 # cluster-cleaner
 
-This operator is intended to automate deletion of giant swarm workload test clusters. By default your cluster will be deleted after 10 hours.
+This operator is intended to automate deletion of giant swarm workload test clusters. By default your cluster will be deleted after default TTL is reached (4 hours).
 
 ## how to prevent cluster from being deleted
 
@@ -30,3 +30,8 @@ The operator exposes a couple of prometheus metrics.
 - `deletion_pending_total`: the number of all pending cluster deletion.
 - `deletion_errors_total`: the number of all failed cluster deletion.
 - `deletion_succeeded_total`: the number of all clusters that were deleted successfully.
+
+## flow diagram ([edit link](https://drive.google.com/file/d/1UBiuc4DHwg5JS_K9Y0uDwL4sVX5wCcb2/view?usp=sharing))
+
+![](https://user-images.githubusercontent.com/5674762/238959954-7e242d3c-bc20-40ec-b564-3daa27a932e2.png)
+

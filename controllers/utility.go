@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"fmt"
 	"time"
 
 	capi "sigs.k8s.io/cluster-api/api/v1beta1"
@@ -30,6 +31,8 @@ const (
 
 	// fluxLabel is the label for checking if the cluster is created via git-ops
 	fluxLabel = "kustomize.toolkit.fluxcd.io/name"
+
+	vintageReleaseVersion = "release.giantswarm.io/version"
 )
 
 func requeue() reconcile.Result {
@@ -60,9 +63,16 @@ func hasChartAnnotations(cluster *capi.Cluster) bool {
 	return nameOK && namespaceOK && releaseName != "" && releaseNamespace != ""
 }
 
-func getChartNamespacedName(cluster *capi.Cluster) client.ObjectKey {
+func getClusterAppNamespacedName(cluster *capi.Cluster) client.ObjectKey {
 	return client.ObjectKey{
 		Name:      cluster.ObjectMeta.Annotations[helmReleaseNameAnnotation],
+		Namespace: cluster.ObjectMeta.Annotations[helmReleaseNamespaceAnnotation],
+	}
+}
+
+func getDefaultAppNamespacedName(cluster *capi.Cluster) client.ObjectKey {
+	return client.ObjectKey{
+		Name:      fmt.Sprintf("%s-default-apps", cluster.Name),
 		Namespace: cluster.ObjectMeta.Annotations[helmReleaseNamespaceAnnotation],
 	}
 }

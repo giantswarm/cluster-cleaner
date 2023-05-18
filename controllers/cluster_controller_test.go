@@ -42,7 +42,7 @@ func TestClusterController(t *testing.T) {
 	}{
 		// cluster marked for deletion
 		{
-			name:                   "case 0",
+			name:                   "case 0 - vintage",
 			expectedDeletion:       true,
 			expectedEventTriggered: false,
 
@@ -52,6 +52,9 @@ func TestClusterController(t *testing.T) {
 					Namespace: "default",
 					CreationTimestamp: metav1.Time{
 						Time: time.Now().Add(-defaultTTL),
+					},
+					Labels: map[string]string{
+						"release.giantswarm.io/version": "18.2.1",
 					},
 					Annotations: map[string]string{},
 					Finalizers: []string{
@@ -170,7 +173,7 @@ func TestClusterController(t *testing.T) {
 		},
 		// keep-until label has expired and cluster will be deleted
 		{
-			name:                   "case 6",
+			name:                   "case 6 - vintage",
 			dryRun:                 false,
 			expectedDeletion:       true,
 			expectedEventTriggered: false,
@@ -184,8 +187,59 @@ func TestClusterController(t *testing.T) {
 					},
 					Annotations: map[string]string{},
 					Labels: map[string]string{
-						keepUntil: "2020-12-08",
+						keepUntil:                       "2020-12-08",
+						"release.giantswarm.io/version": "18.2.1",
 					},
+					Finalizers: []string{
+						"operatorkit.giantswarm.io/cluster-operator-cluster-controller",
+					},
+				},
+			},
+		},
+		// cluster managed by Flux shouldn't ever be deleted
+		{
+			name:                   "case 7 - vintage",
+			dryRun:                 false,
+			expectedDeletion:       false,
+			expectedEventTriggered: false,
+
+			cluster: &capi.Cluster{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test",
+					Namespace: "default",
+					CreationTimestamp: metav1.Time{
+						Time: time.Now().Add(-defaultTTL),
+					},
+					Annotations: map[string]string{
+						"kustomize.toolkit.fluxcd.io/name": "flux",
+					},
+					Labels: map[string]string{
+						"release.giantswarm.io/version": "18.2.1",
+					},
+					Finalizers: []string{
+						"operatorkit.giantswarm.io/cluster-operator-cluster-controller",
+					},
+				},
+			},
+		},
+		// cluster managed by Flux shouldn't ever be deleted
+		{
+			name:                   "case 8 - capi",
+			dryRun:                 false,
+			expectedDeletion:       false,
+			expectedEventTriggered: false,
+
+			cluster: &capi.Cluster{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test",
+					Namespace: "default",
+					CreationTimestamp: metav1.Time{
+						Time: time.Now().Add(-defaultTTL),
+					},
+					Annotations: map[string]string{
+						"kustomize.toolkit.fluxcd.io/name": "flux",
+					},
+					Labels: map[string]string{},
 					Finalizers: []string{
 						"operatorkit.giantswarm.io/cluster-operator-cluster-controller",
 					},
@@ -337,7 +391,7 @@ func TestClusterAppDeletion(t *testing.T) {
 		},
 		// cluster marked for deletion
 		{
-			name:                    "case 2 - cluster delete",
+			name:                    "case 2 - vintage cluster delete",
 			expectedClusterDeletion: true,
 
 			cluster: &capi.Cluster{
@@ -346,6 +400,9 @@ func TestClusterAppDeletion(t *testing.T) {
 					Namespace: "default",
 					CreationTimestamp: metav1.Time{
 						Time: time.Now().Add(-defaultTTL),
+					},
+					Labels: map[string]string{
+						"release.giantswarm.io/version": "18.2.1",
 					},
 					Annotations: map[string]string{
 						helmReleaseNameAnnotation:      "test",
@@ -405,7 +462,7 @@ func TestClusterAppDeletion(t *testing.T) {
 					expectedDeletion: true,
 					app: &gsapplication.App{
 						ObjectMeta: metav1.ObjectMeta{
-							Name:      "default-apps",
+							Name:      "test-default-apps",
 							Namespace: "default",
 							Labels: map[string]string{
 								label.Cluster: "test",

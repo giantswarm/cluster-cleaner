@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 
 ## [Unreleased]
+### Added
+- Added test case for CAPI MC
+
+### Changed
+- Fixed logging
+- Updated RBAC permissions for cleaning up CAPI cluster
 
 ## [0.6.0] - 2023-05-18
 - Added support for CAPI cluster

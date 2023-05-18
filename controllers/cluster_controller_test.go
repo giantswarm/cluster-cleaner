@@ -459,6 +459,22 @@ func TestClusterAppDeletion(t *testing.T) {
 					},
 				},
 				{
+					expectedDeletion: false,
+					app: &gsapplication.App{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      "test2",
+							Namespace: "default",
+							Labels: map[string]string{
+								label.Cluster:                      "test",
+								"kustomize.toolkit.fluxcd.io/name": "flux",
+							},
+							Finalizers: []string{
+								"test.giantswarm.io/keep",
+							},
+						},
+					},
+				},
+				{
 					expectedDeletion: true,
 					app: &gsapplication.App{
 						ObjectMeta: metav1.ObjectMeta{

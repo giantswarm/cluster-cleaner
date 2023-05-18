@@ -78,14 +78,14 @@ func (r *ClusterReconciler) reconcile(ctx context.Context, cluster *capi.Cluster
 	// ignore GitOps-managed resources
 	if _, ok := cluster.Labels[fluxLabel]; ok {
 		IgnoredTotal.WithLabelValues(cluster.Name, cluster.Namespace).Inc()
-		log.Info("Found label %s. Cluster will be ignored for deletion", fluxLabel)
+		log.Info(fmt.Sprintf("Found label %s. Cluster will be ignored for deletion", fluxLabel))
 		return ctrl.Result{}, nil
 	}
 
 	// ignore cluster from being deleted if ignore annotation is set
 	if _, ok := cluster.Annotations[ignoreClusterDeletion]; ok {
 		IgnoredTotal.WithLabelValues(cluster.Name, cluster.Namespace).Inc()
-		log.Info("Found annotation %s. Cluster will be ignored for deletion", ignoreClusterDeletion)
+		log.Info(fmt.Sprintf("Found annotation %s. Cluster will be ignored for deletion", ignoreClusterDeletion))
 		return ctrl.Result{}, nil
 	}
 
@@ -99,7 +99,7 @@ func (r *ClusterReconciler) reconcile(ctx context.Context, cluster *capi.Cluster
 		}
 		if time.Now().UTC().Before(t) {
 			IgnoredTotal.WithLabelValues(cluster.Name, cluster.Namespace).Inc()
-			log.Info("Found label %s. Cluster will be ignored for deletion", keepUntil)
+			log.Info(fmt.Sprintf("Found label %s. Cluster will be ignored for deletion", keepUntil))
 			return ctrl.Result{RequeueAfter: 24 * time.Hour}, nil
 		}
 	}
@@ -143,7 +143,7 @@ func (r *ClusterReconciler) reconcile(ctx context.Context, cluster *capi.Cluster
 }
 
 func deleteVintageCluster(ctx context.Context, log logr.Logger, client ctrlclient.Client, cluster *capi.Cluster) error {
-	log.Info("Cluster is being deleted", cluster.Namespace, cluster.Name)
+	log.Info("Cluster is being deleted")
 	if err := client.Delete(ctx, cluster, ctrlclient.PropagationPolicy(metav1.DeletePropagationBackground)); err != nil {
 		log.Error(err, "unable to delete cluster")
 		ErrorsTotal.WithLabelValues(cluster.Name, cluster.Namespace).Inc()

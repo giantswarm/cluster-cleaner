@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added 
+
+- Added required values for pss policies.
+
 ## [0.6.1] - 2023-05-18
 ### Added
 - Added test case for CAPI MC

@@ -9,15 +9,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Add missing team label on servicemonitor.
+
 ## [0.6.1] - 2023-05-18
+
 ### Added
+
 - Added test case for CAPI MC
 
 ### Changed
+
 - Fixed logging
 - Updated RBAC permissions for cleaning up CAPI cluster
 
 ## [0.6.0] - 2023-05-18
+
+### Added
+
 - Added support for CAPI cluster
 
 ## [0.5.1] - 2023-04-04

@@ -5,7 +5,7 @@ image:
   name: "giantswarm/cluster-cleaner"
   tag: "[[ .Version ]]"
 registry:
-  domain: docker.io
+  domain: gsoci.azurecr.io
 
 dryRun: false
 
@@ -31,4 +31,4 @@ securityContext:
     type: RuntimeDefault
   capabilities:
     drop:
-    - ALL
+      - ALL

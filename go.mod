@@ -8,7 +8,7 @@ require (
 	github.com/go-logr/logr v1.2.4
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.12.2
-	github.com/stretchr/testify v1.7.1
+	github.com/stretchr/testify v1.8.4
 	golang.org/x/text v0.8.0
 	k8s.io/api v0.24.1
 	k8s.io/apimachinery v0.24.1

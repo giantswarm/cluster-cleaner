@@ -13,6 +13,20 @@
         "dryRun": {
             "type": "boolean"
         },
+        "global": {
+            "type": "object",
+            "properties": {
+                "podSecurityStandards": {
+                    "type": "object",
+                    "properties": {
+                        "enforced": {
+                            "default": false,
+                            "type": "boolean"
+                        }
+                    }
+                }
+            }
+        },
         "image": {
             "type": "object",
             "properties": {

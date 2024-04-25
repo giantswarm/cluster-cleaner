@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add CircleCI job to push `cluster-cleaner` to  CAPA,CAPZ,CAPV and CAPVCD app collection.
+
 ## [0.9.0] - 2024-02-15
 
 ### Changed

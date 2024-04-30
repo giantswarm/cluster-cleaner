@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Ignore cluster from being deleted, if it is older than 7 days and do not have the `keep-until` annotation. This is to prevent deletion of a customer clusters in case this app is accidentally deployed to a production MC.
+
 ## [0.9.0] - 2024-02-15
 
 ### Changed

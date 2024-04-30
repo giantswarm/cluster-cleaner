@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add CircleCI job to push `cluster-cleaner` to  CAPA,CAPZ,CAPV and CAPVCD app collection.
+
 ### Changed
 
 - Ignore cluster from being deleted, if it is older than 7 days and does not have the `keep-until` label. This is to prevent the deletion of customer clusters in case this app is accidentally deployed to a production MC.

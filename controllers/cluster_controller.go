@@ -102,6 +102,14 @@ func (r *ClusterReconciler) reconcile(ctx context.Context, cluster *capi.Cluster
 			log.Info(fmt.Sprintf("Found label %s. Cluster will be ignored for deletion", keepUntil))
 			return ctrl.Result{RequeueAfter: 24 * time.Hour}, nil
 		}
+	} else {
+		// ignore cluster from being deleted if it is older than 7 days and do NOT have keep-until label
+		// this is to prevent deletion in a case of accidental deployment of the app to production MCs
+		if time.Since(cluster.CreationTimestamp.Time).Hours() > 24*7 {
+			log.Info(fmt.Sprintf("Cluster is older than 7 days and does not have label %s. Cluster will be ignored for deletion", keepUntil))
+			return ctrl.Result{}, nil
+		}
+
 	}
 
 	// immediately delete the cluster if defaultTTL has passed

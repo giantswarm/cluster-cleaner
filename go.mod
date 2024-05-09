@@ -7,7 +7,7 @@ require (
 	github.com/giantswarm/k8smetadata v0.24.0
 	github.com/go-logr/logr v1.4.1
 	github.com/pkg/errors v0.9.1
-	github.com/prometheus/client_golang v1.19.0
+	github.com/prometheus/client_golang v1.19.1
 	github.com/stretchr/testify v1.9.0
 	golang.org/x/text v0.15.0
 	k8s.io/api v0.24.1
@@ -63,7 +63,7 @@ require (
 	golang.org/x/crypto v0.18.0 // indirect
 	golang.org/x/net v0.20.0 // indirect
 	golang.org/x/oauth2 v0.16.0 // indirect
-	golang.org/x/sys v0.16.0 // indirect
+	golang.org/x/sys v0.17.0 // indirect
 	golang.org/x/term v0.16.0 // indirect
 	golang.org/x/time v0.0.0-20220411224347-583f2d630306 // indirect
 	gomodules.xyz/jsonpatch/v2 v2.2.0 // indirect

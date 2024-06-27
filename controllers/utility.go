@@ -32,7 +32,7 @@ const (
 	// fluxLabel is the label for checking if the cluster is created via git-ops
 	fluxLabel = "kustomize.toolkit.fluxcd.io/name"
 
-	vintageReleaseVersion = "release.giantswarm.io/version"
+	clusterOperatorVersion = "cluster-operator.giantswarm.io/version"
 )
 
 func requeue() reconcile.Result {

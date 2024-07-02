@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Change the label used to detect whether the Cluster is Vintage or CAPI based.
+
 ## [0.10.0] - 2024-04-30
 
 ### Added

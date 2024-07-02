@@ -116,7 +116,7 @@ func (r *ClusterReconciler) reconcile(ctx context.Context, cluster *capi.Cluster
 	if deletionTimeReached(cluster) {
 		if !r.DryRun {
 			// if it's a vintage cluster, we just try to remove the Cluster CR
-			if _, ok := cluster.Labels[vintageReleaseVersion]; ok {
+			if _, ok := cluster.Labels[clusterOperatorVersion]; ok {
 				err := deleteVintageCluster(ctx, log, r.Client, cluster)
 				if err != nil {
 					return ctrl.Result{}, err

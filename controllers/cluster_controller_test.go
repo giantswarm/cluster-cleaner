@@ -54,7 +54,7 @@ func TestClusterController(t *testing.T) {
 						Time: time.Now().Add(-defaultTTL),
 					},
 					Labels: map[string]string{
-						"release.giantswarm.io/version": "18.2.1",
+						"cluster-operator.giantswarm.io/version": "5.1.1",
 					},
 					Annotations: map[string]string{},
 					Finalizers: []string{
@@ -187,8 +187,8 @@ func TestClusterController(t *testing.T) {
 					},
 					Annotations: map[string]string{},
 					Labels: map[string]string{
-						keepUntil:                       "2020-12-08",
-						"release.giantswarm.io/version": "18.2.1",
+						keepUntil:                                "2020-12-08",
+						"cluster-operator.giantswarm.io/version": "5.1.1",
 					},
 					Finalizers: []string{
 						"operatorkit.giantswarm.io/cluster-operator-cluster-controller",
@@ -214,7 +214,7 @@ func TestClusterController(t *testing.T) {
 						"kustomize.toolkit.fluxcd.io/name": "flux",
 					},
 					Labels: map[string]string{
-						"release.giantswarm.io/version": "18.2.1",
+						"cluster-operator.giantswarm.io/version": "5.1.1",
 					},
 					Finalizers: []string{
 						"operatorkit.giantswarm.io/cluster-operator-cluster-controller",
@@ -402,7 +402,7 @@ func TestClusterAppDeletion(t *testing.T) {
 						Time: time.Now().Add(-defaultTTL),
 					},
 					Labels: map[string]string{
-						"release.giantswarm.io/version": "18.2.1",
+						"cluster-operator.giantswarm.io/version": "5.1.1",
 					},
 					Annotations: map[string]string{
 						helmReleaseNameAnnotation:      "test",

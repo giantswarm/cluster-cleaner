@@ -9,7 +9,7 @@ require (
 	github.com/giantswarm/k8smetadata v0.25.0
 	github.com/go-logr/logr v1.4.2
 	github.com/pkg/errors v0.9.1
-	github.com/prometheus/client_golang v1.20.3
+	github.com/prometheus/client_golang v1.20.4
 	github.com/stretchr/testify v1.9.0
 	golang.org/x/text v0.18.0
 	k8s.io/api v0.31.1

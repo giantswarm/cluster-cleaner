@@ -29,6 +29,7 @@ workflows:
       - architect/push-to-app-catalog:
           context: architect
           name: push-cluster-cleaner-to-app-catalog
+          executor: app-build-suite
           app_catalog: control-plane-catalog
           app_catalog_test: control-plane-test-catalog
           chart: cluster-cleaner
@@ -38,9 +39,7 @@ workflows:
             tags:
               only: /^v.*/
             branches:
-              ignore:
-                - main
-                - master
+              only: /.*/ 
 
       - architect/push-to-app-collection:
           context: architect

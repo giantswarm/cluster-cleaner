@@ -2,7 +2,7 @@ module github.com/giantswarm/cluster-cleaner
 
 go 1.23.0
 
-toolchain go1.23.5
+toolchain go1.23.6
 
 require (
 	github.com/giantswarm/apiextensions-application v0.6.2

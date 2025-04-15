@@ -58,21 +58,21 @@ func deletionEventTimeReached(cluster *capi.Cluster) bool {
 }
 
 func hasChartAnnotations(cluster *capi.Cluster) bool {
-	releaseName, nameOK := cluster.ObjectMeta.Annotations[helmReleaseNameAnnotation]
-	releaseNamespace, namespaceOK := cluster.ObjectMeta.Annotations[helmReleaseNamespaceAnnotation]
+	releaseName, nameOK := cluster.Annotations[helmReleaseNameAnnotation]
+	releaseNamespace, namespaceOK := cluster.Annotations[helmReleaseNamespaceAnnotation]
 	return nameOK && namespaceOK && releaseName != "" && releaseNamespace != ""
 }
 
 func getClusterAppNamespacedName(cluster *capi.Cluster) client.ObjectKey {
 	return client.ObjectKey{
-		Name:      cluster.ObjectMeta.Annotations[helmReleaseNameAnnotation],
-		Namespace: cluster.ObjectMeta.Annotations[helmReleaseNamespaceAnnotation],
+		Name:      cluster.Annotations[helmReleaseNameAnnotation],
+		Namespace: cluster.Annotations[helmReleaseNamespaceAnnotation],
 	}
 }
 
 func getDefaultAppNamespacedName(cluster *capi.Cluster) client.ObjectKey {
 	return client.ObjectKey{
 		Name:      fmt.Sprintf("%s-default-apps", cluster.Name),
-		Namespace: cluster.ObjectMeta.Annotations[helmReleaseNamespaceAnnotation],
+		Namespace: cluster.Annotations[helmReleaseNamespaceAnnotation],
 	}
 }

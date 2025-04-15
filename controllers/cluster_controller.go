@@ -56,7 +56,7 @@ func (r *ClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 
 	// Fetch the Cluster instance.
 	cluster := &capi.Cluster{}
-	if err := r.Client.Get(ctx, req.NamespacedName, cluster); err != nil {
+	if err := r.Get(ctx, req.NamespacedName, cluster); err != nil {
 		if apierrors.IsNotFound(err) {
 			return ctrl.Result{}, nil
 		}

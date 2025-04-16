@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Disable logger development mode to avoid panicking, use zap as logger.
+- Fix linting issues.
 
 ## [0.10.1] - 2024-07-02
 

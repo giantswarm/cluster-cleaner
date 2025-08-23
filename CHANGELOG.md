@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Disable logger development mode to avoid panicking, use zap as logger.
 - Fix linting issues.
 - Go: Update dependencies.
+- Go: Downgrade Cluster API to v1.10.5.
 
 ## [0.10.1] - 2024-07-02
 

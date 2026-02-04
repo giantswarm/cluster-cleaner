@@ -1,11 +1,11 @@
 apiVersion: v2
 name: cluster-cleaner
-version: 1.7.0-dev
-appVersion: 1.7.0-dev
+version: 0.10.2-dev
+appVersion: 0.10.2-dev
 description: "Operator for deleting test clusters"
 home: "https://github.com/giantswarm/cluster-cleaner"
 icon: https://s.giantswarm.io/app-icons/giantswarm/1/dark.svg
 annotations:
-  application.giantswarm.io/team: "phoenix"
-  io.giantswarm.application.team: "phoenix"
+  application.giantswarm.io/team: "tenet"
+  io.giantswarm.application.team: "tenet"
   config.giantswarm.io/version: 1.x.x

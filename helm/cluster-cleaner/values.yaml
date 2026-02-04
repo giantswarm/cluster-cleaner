@@ -1,9 +1,6 @@
-project:
-  branch: "[[ .Branch ]]"
-  commit: "[[ .SHA ]]"
 image:
   name: "giantswarm/cluster-cleaner"
-  tag: "[[ .Version ]]"
+  tag: ""
 registry:
   domain: gsoci.azurecr.io
 

@@ -7,9 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Migrate to App Build Suite (ABS) for Helm chart building.
+
 ## [0.10.2] - 2026-01-30
 
 ### Changed
+
 - Build with up-to-date pipelines.
 - Disable logger development mode to avoid panicking, use zap as logger.
 - Fix linting issues.

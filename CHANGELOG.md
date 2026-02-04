@@ -10,6 +10,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Migrate to App Build Suite (ABS) for Helm chart building.
+
+## [0.10.2] - 2026-01-30
+
+### Changed
+
+- Build with up-to-date pipelines.
 - Disable logger development mode to avoid panicking, use zap as logger.
 - Fix linting issues.
 - Go: Update dependencies.
@@ -124,7 +130,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 
 
-[Unreleased]: https://github.com/giantswarm/cluster-cleaner/compare/v0.10.1...HEAD
+[Unreleased]: https://github.com/giantswarm/cluster-cleaner/compare/v0.10.2...HEAD
+[0.10.2]: https://github.com/giantswarm/cluster-cleaner/compare/v0.10.1...v0.10.2
 [0.10.1]: https://github.com/giantswarm/cluster-cleaner/compare/v0.10.0...v0.10.1
 [0.10.0]: https://github.com/giantswarm/cluster-cleaner/compare/v0.9.0...v0.10.0
 [0.9.0]: https://github.com/giantswarm/cluster-cleaner/compare/v0.8.0...v0.9.0

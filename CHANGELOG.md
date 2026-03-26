@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Fix `keep-until` label off-by-one error: clusters are now kept through the entire labeled date instead of being deleted on that date.
+
 ## [0.11.0] - 2026-02-18
 
 ### Changed

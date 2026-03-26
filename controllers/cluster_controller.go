@@ -97,7 +97,7 @@ func (r *ClusterReconciler) reconcile(ctx context.Context, cluster *capi.Cluster
 			log.Error(err, "failed to parse keep-until label value for cluster")
 			return ctrl.Result{}, nil
 		}
-		if time.Now().UTC().Before(t) {
+		if time.Now().UTC().Before(t.AddDate(0, 0, 1)) {
 			IgnoredTotal.WithLabelValues(cluster.Name, cluster.Namespace).Inc()
 			log.Info(fmt.Sprintf("Found label %s. Cluster will be ignored for deletion", keepUntil))
 			return ctrl.Result{RequeueAfter: 24 * time.Hour}, nil

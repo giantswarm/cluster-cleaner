@@ -171,6 +171,30 @@ func TestClusterController(t *testing.T) {
 				},
 			},
 		},
+		// keep-until label is set to today - cluster should be kept through the entire day
+		{
+			name:                   "case 5b - keep-until today",
+			dryRun:                 false,
+			expectedDeletion:       false,
+			expectedEventTriggered: false,
+
+			cluster: &capi.Cluster{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test",
+					Namespace: "default",
+					CreationTimestamp: metav1.Time{
+						Time: time.Now().Add(-12 * time.Hour),
+					},
+					Annotations: map[string]string{},
+					Labels: map[string]string{
+						keepUntil: time.Now().UTC().Format(keepUntilTimeLayout),
+					},
+					Finalizers: []string{
+						"operatorkit.giantswarm.io/cluster-operator-cluster-controller",
+					},
+				},
+			},
+		},
 		// keep-until label has expired and cluster will be deleted
 		{
 			name:                   "case 6 - vintage",

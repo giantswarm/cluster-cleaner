@@ -255,5 +255,5 @@ func (r *ClusterReconciler) SetupWithManager(mgr ctrl.Manager) error {
 }
 
 func (r *ClusterReconciler) submitClusterDeletionEvent(cluster *capi.Cluster, message string) {
-	r.recorder.Eventf(cluster, corev1.EventTypeNormal, "ClusterMarkedForDeletion", message)
+	r.recorder.Eventf(cluster, corev1.EventTypeNormal, "ClusterMarkedForDeletion", "%s", message)
 }

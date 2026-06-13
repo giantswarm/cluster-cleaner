@@ -9,7 +9,7 @@ WORKDIR /app
 COPY . .
 
 # Build app.
-RUN GOOS="${TARGETOS}" GOARCH="${TARGETARCH}" go build -o manager main.go
+RUN GOOS="${TARGETOS}" GOARCH="${TARGETARCH}" CGO_ENABLED=0 go build -o manager main.go
 
 # Use a distroless image for running the app.
 FROM gcr.io/distroless/static:nonroot

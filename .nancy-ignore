@@ -1,1 +1,1 @@
-CVE-2026-41178 until=2026-07-29 # go.opentelemetry.io/otel@v1.43.0
+CVE-2026-41178 until=2026-08-28 # go.opentelemetry.io/otel@v1.43.0

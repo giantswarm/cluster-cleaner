@@ -21,6 +21,7 @@ import (
 	// to ensure that exec-entrypoint and run can make use of them.
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 
+	helmv2 "github.com/fluxcd/helm-controller/api/v2"
 	gsapplication "github.com/giantswarm/apiextensions-application/api/v1alpha1"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
@@ -45,6 +46,7 @@ func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 	_ = capi.AddToScheme(scheme)
 	_ = gsapplication.AddToScheme(scheme)
+	_ = helmv2.AddToScheme(scheme)
 	//+kubebuilder:scaffold:scheme
 }
 

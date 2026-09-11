@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	helmv2 "github.com/fluxcd/helm-controller/api/v2"
 	gsapplication "github.com/giantswarm/apiextensions-application/api/v1alpha1"
 	"github.com/giantswarm/k8smetadata/pkg/label"
 	"github.com/stretchr/testify/assert"
@@ -29,6 +30,7 @@ func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(fakeScheme))
 	_ = capi.AddToScheme(fakeScheme)
 	_ = gsapplication.AddToScheme(fakeScheme)
+	_ = helmv2.AddToScheme(fakeScheme)
 }
 
 func TestClusterController(t *testing.T) {
@@ -582,5 +584,287 @@ func TestClusterAppDeletion(t *testing.T) {
 				t.Logf("Test case '%s' failed", tc.name)
 			}
 		})
+	}
+}
+
+func TestClusterHelmReleaseDeletion(t *testing.T) {
+	testCases := []struct {
+		name                    string
+		expectedClusterDeletion bool
+
+		cluster      *capi.Cluster
+		helmReleases []struct {
+			hr               *helmv2.HelmRelease
+			expectedDeletion bool
+		}
+	}{
+		// HelmRelease marked for deletion - no App CR exists for this cluster,
+		// so the App-CR lookup falls back to HelmRelease
+		{
+			name:                    "case 0 - helmrelease delete",
+			expectedClusterDeletion: false,
+
+			cluster: &capi.Cluster{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test",
+					Namespace: "default",
+					CreationTimestamp: metav1.Time{
+						Time: time.Now().Add(-defaultTTL),
+					},
+					Annotations: map[string]string{
+						helmReleaseNameAnnotation:      "test",
+						helmReleaseNamespaceAnnotation: "default",
+					},
+					Finalizers: []string{
+						"operatorkit.giantswarm.io/cluster-operator-cluster-controller",
+					},
+				},
+			},
+			helmReleases: []struct {
+				hr               *helmv2.HelmRelease
+				expectedDeletion bool
+			}{
+				{
+					expectedDeletion: true,
+					hr: &helmv2.HelmRelease{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      "test",
+							Namespace: "default",
+							Labels: map[string]string{
+								label.Cluster: "test",
+							},
+							Finalizers: []string{
+								"test.giantswarm.io/keep",
+							},
+						},
+					},
+				},
+				{
+					expectedDeletion: true,
+					hr: &helmv2.HelmRelease{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      "test-default-apps",
+							Namespace: "default",
+							Labels: map[string]string{
+								label.Cluster: "test",
+							},
+							Finalizers: []string{
+								"test.giantswarm.io/keep",
+							},
+						},
+					},
+				},
+			},
+		},
+		// nothing marked for deletion - TTL not reached
+		{
+			name:                    "case 1 - no delete",
+			expectedClusterDeletion: false,
+
+			cluster: &capi.Cluster{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test",
+					Namespace: "default",
+					CreationTimestamp: metav1.Time{
+						Time: time.Now().Add(defaultTTL),
+					},
+					Annotations: map[string]string{
+						helmReleaseNameAnnotation:      "test",
+						helmReleaseNamespaceAnnotation: "default",
+					},
+					Finalizers: []string{
+						"operatorkit.giantswarm.io/cluster-operator-cluster-controller",
+					},
+				},
+			},
+			helmReleases: []struct {
+				hr               *helmv2.HelmRelease
+				expectedDeletion bool
+			}{
+				{
+					expectedDeletion: false,
+					hr: &helmv2.HelmRelease{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      "test",
+							Namespace: "default",
+							Labels: map[string]string{
+								label.Cluster: "test",
+							},
+							Finalizers: []string{
+								"test.giantswarm.io/keep",
+							},
+						},
+					},
+				},
+			},
+		},
+		// HelmRelease carrying the Flux Kustomize label is the MC's own release - ignored
+		{
+			name:                    "case 2 - flux-managed helmrelease ignored",
+			expectedClusterDeletion: false,
+
+			cluster: &capi.Cluster{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test",
+					Namespace: "default",
+					CreationTimestamp: metav1.Time{
+						Time: time.Now().Add(-defaultTTL),
+					},
+					Annotations: map[string]string{
+						helmReleaseNameAnnotation:      "test",
+						helmReleaseNamespaceAnnotation: "default",
+					},
+					Finalizers: []string{
+						"operatorkit.giantswarm.io/cluster-operator-cluster-controller",
+					},
+				},
+			},
+			helmReleases: []struct {
+				hr               *helmv2.HelmRelease
+				expectedDeletion bool
+			}{
+				{
+					expectedDeletion: false,
+					hr: &helmv2.HelmRelease{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      "test",
+							Namespace: "default",
+							Labels: map[string]string{
+								label.Cluster:                      "test",
+								"kustomize.toolkit.fluxcd.io/name": "flux",
+							},
+							Finalizers: []string{
+								"test.giantswarm.io/keep",
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+	for i, tc := range testCases {
+		t.Run(strconv.Itoa(i), func(t *testing.T) {
+			fakeClientBuilder := fake.NewClientBuilder().WithScheme(fakeScheme).WithObjects(tc.cluster)
+			for _, hr := range tc.helmReleases {
+				fakeClientBuilder = fakeClientBuilder.WithObjects(hr.hr)
+			}
+			fakeClient := fakeClientBuilder.Build()
+			fakeRecorder := record.NewFakeRecorder(1)
+			r := &ClusterReconciler{
+				Client:   fakeClient,
+				Scheme:   fakeScheme,
+				Log:      ctrl.Log.WithName("fake"),
+				recorder: fakeRecorder,
+			}
+			ctx := context.TODO()
+			_, err := r.Reconcile(ctx, ctrl.Request{NamespacedName: types.NamespacedName{Name: tc.cluster.GetName(), Namespace: tc.cluster.GetNamespace()}})
+			if err != nil {
+				t.Error(err)
+			}
+
+			cluster := &capi.Cluster{}
+			err = fakeClient.Get(ctx, types.NamespacedName{Name: tc.cluster.GetName(), Namespace: tc.cluster.GetNamespace()}, cluster)
+			if err != nil {
+				t.Error(err)
+			}
+
+			if tc.expectedClusterDeletion && cluster.DeletionTimestamp == nil {
+				t.Errorf("expected deletion timestamp to be set on cluster")
+			}
+
+			if !tc.expectedClusterDeletion {
+				for _, hr := range tc.helmReleases {
+					got := &helmv2.HelmRelease{}
+					err = fakeClient.Get(ctx, types.NamespacedName{Name: hr.hr.GetName(), Namespace: hr.hr.GetNamespace()}, got)
+					if err != nil {
+						t.Error(err)
+					}
+
+					if hr.expectedDeletion && got.DeletionTimestamp == nil {
+						t.Errorf("expected deletion timestamp to be set on HelmRelease")
+					} else if !hr.expectedDeletion && got.DeletionTimestamp != nil {
+						t.Errorf("not expecting deletion timestamp to be set on HelmRelease")
+					}
+				}
+			}
+			if t.Failed() {
+				t.Logf("Test case '%s' failed", tc.name)
+			}
+		})
+	}
+}
+
+// TestClusterAppTakesPrecedenceOverHelmRelease covers the migration window where a
+// cluster's release could be represented by either mechanism: the App CR path is
+// tried first, and only falls back to HelmRelease when no App CR is found.
+func TestClusterAppTakesPrecedenceOverHelmRelease(t *testing.T) {
+	cluster := &capi.Cluster{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test",
+			Namespace: "default",
+			CreationTimestamp: metav1.Time{
+				Time: time.Now().Add(-defaultTTL),
+			},
+			Annotations: map[string]string{
+				helmReleaseNameAnnotation:      "test",
+				helmReleaseNamespaceAnnotation: "default",
+			},
+			Finalizers: []string{
+				"operatorkit.giantswarm.io/cluster-operator-cluster-controller",
+			},
+		},
+	}
+	app := &gsapplication.App{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test",
+			Namespace: "default",
+			Labels: map[string]string{
+				label.Cluster: "test",
+			},
+			Finalizers: []string{
+				"test.giantswarm.io/keep",
+			},
+		},
+	}
+	hr := &helmv2.HelmRelease{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test",
+			Namespace: "default",
+			Labels: map[string]string{
+				label.Cluster: "test",
+			},
+			Finalizers: []string{
+				"test.giantswarm.io/keep",
+			},
+		},
+	}
+
+	fakeClient := fake.NewClientBuilder().WithScheme(fakeScheme).WithObjects(cluster, app, hr).Build()
+	r := &ClusterReconciler{
+		Client:   fakeClient,
+		Scheme:   fakeScheme,
+		Log:      ctrl.Log.WithName("fake"),
+		recorder: record.NewFakeRecorder(1),
+	}
+	ctx := context.TODO()
+	_, err := r.Reconcile(ctx, ctrl.Request{NamespacedName: types.NamespacedName{Name: cluster.GetName(), Namespace: cluster.GetNamespace()}})
+	if err != nil {
+		t.Error(err)
+	}
+
+	gotApp := &gsapplication.App{}
+	if err := fakeClient.Get(ctx, types.NamespacedName{Name: "test", Namespace: "default"}, gotApp); err != nil {
+		t.Error(err)
+	}
+	if gotApp.DeletionTimestamp == nil {
+		t.Errorf("expected App CR to be deleted")
+	}
+
+	gotHr := &helmv2.HelmRelease{}
+	if err := fakeClient.Get(ctx, types.NamespacedName{Name: "test", Namespace: "default"}, gotHr); err != nil {
+		t.Error(err)
+	}
+	if gotHr.DeletionTimestamp != nil {
+		t.Errorf("expected HelmRelease to be left untouched while an App CR exists")
 	}
 }

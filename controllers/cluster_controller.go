@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"time"
 
+	helmv2 "github.com/fluxcd/helm-controller/api/v2"
 	gsapplication "github.com/giantswarm/apiextensions-application/api/v1alpha1"
 	"github.com/giantswarm/k8smetadata/pkg/label"
 	"github.com/go-logr/logr"
@@ -50,6 +51,7 @@ type ClusterReconciler struct {
 // +kubebuilder:rbac:groups=cluster.x-k8s.io,resources=clusters,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=cluster.x-k8s.io,resources=clusters/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=cluster.x-k8s.io,resources=clusters/finalizers,verbs=update
+// +kubebuilder:rbac:groups=helm.toolkit.fluxcd.io,resources=helmreleases,verbs=get;list;watch;delete
 
 func (r *ClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	log := r.Log.WithValues("cluster", req.NamespacedName)
@@ -162,6 +164,11 @@ func deleteVintageCluster(ctx context.Context, log logr.Logger, client ctrlclien
 	return nil
 }
 
+// deleteClusterApp tears down the release that provisions the cluster's workload,
+// whether it's still App-operator managed (App CR) or has moved to being managed
+// directly by Flux (HelmRelease). Both are looked up by the same Helm release
+// name/namespace annotations on the Cluster, since either mechanism stamps them.
+// TODO(cluster-cleaner): once every cluster has migrated off App CRs, drop the App path.
 func deleteClusterApp(ctx context.Context, log logr.Logger, client ctrlclient.Client, cluster *capi.Cluster) error {
 	// CAPI-based cluster but without Helm annotation? weird! should not happen; if do, we have log it
 	if !hasChartAnnotations(cluster) {
@@ -170,51 +177,20 @@ func deleteClusterApp(ctx context.Context, log logr.Logger, client ctrlclient.Cl
 		return nil
 	}
 
-	app := &gsapplication.App{}
-	if err := client.Get(ctx, getClusterAppNamespacedName(cluster), app); err != nil {
-		if apierrors.IsNotFound(err) {
-			return nil
+	result, err := deleteRelease[gsapplication.App, *gsapplication.App](ctx, log, client, cluster, "App")
+	if err != nil {
+		return err
+	}
+	if result == releaseNotFound {
+		// no App CR - the cluster's release may be managed by a Flux HelmRelease instead
+		result, err = deleteRelease[helmv2.HelmRelease, *helmv2.HelmRelease](ctx, log, client, cluster, "HelmRelease")
+		if err != nil {
+			return err
 		}
-		log.Error(err, "Unable to get app CR for cluster")
-		ErrorsTotal.WithLabelValues(cluster.Name, cluster.Namespace).Inc()
+	}
+	if result != releaseDeleted {
 		return nil
 	}
-	// ignore GitOps-managed resources, ensure we're not deleting cluster app CR of MC itself
-	if _, ok := app.Labels[fluxLabel]; ok {
-		IgnoredTotal.WithLabelValues(cluster.Name, cluster.Namespace).Inc()
-		log.Info(fmt.Sprintf("Found label %s in App CR. Cluster will be ignored for deletion", fluxLabel))
-		return nil
-	}
-
-	log.Info(fmt.Sprintf("Cluster has exceeded the default time to live (%s) and will be deleted", defaultTTL))
-
-	// delete App CR for the cluster
-	log.Info(fmt.Sprintf("App %s/%s is being deleted", app.Name, app.Namespace))
-	if err := client.Delete(ctx, app, ctrlclient.PropagationPolicy(metav1.DeletePropagationBackground)); err != nil {
-		log.Error(err, "unable to delete App CR for cluster")
-		ErrorsTotal.WithLabelValues(cluster.Name, cluster.Namespace).Inc()
-		return err
-	}
-	log.Info(fmt.Sprintf("App %s/%s was deleted", app.Name, app.Namespace))
-
-	// delete default-apps App CR for the cluster
-	defaultApp := &gsapplication.App{}
-	if err := client.Get(ctx, getDefaultAppNamespacedName(cluster), defaultApp); err != nil {
-		if apierrors.IsNotFound(err) {
-			return nil
-		}
-		log.Error(err, "unable to get default-apps CR for cluster")
-		ErrorsTotal.WithLabelValues(cluster.Name, cluster.Namespace).Inc()
-		return err
-	}
-	log.Info(fmt.Sprintf("App %s/%s is being deleted", defaultApp.Name, defaultApp.Namespace))
-
-	if err := client.Delete(ctx, defaultApp, ctrlclient.PropagationPolicy(metav1.DeletePropagationBackground)); err != nil {
-		log.Error(err, "unable to delete default-apps App CR for cluster")
-		ErrorsTotal.WithLabelValues(cluster.Name, cluster.Namespace).Inc()
-		return err
-	}
-	log.Info(fmt.Sprintf("App %s/%s was deleted", defaultApp.Name, defaultApp.Namespace))
 
 	// delete config maps for the cluster
 	cmSelector := labels.NewSelector()
@@ -238,6 +214,79 @@ func deleteClusterApp(ctx context.Context, log logr.Logger, client ctrlclient.Cl
 
 	SuccessTotal.WithLabelValues(cluster.Name, cluster.Namespace).Inc()
 
+	return nil
+}
+
+// releaseResult is the outcome of trying to find and delete a cluster's release CR.
+type releaseResult int
+
+const (
+	releaseNotFound releaseResult = iota // no CR of this kind found - caller may try a different kind
+	releaseIgnored                       // CR is GitOps-managed, left alone
+	releaseErrored                       // already logged and counted; caller should stop, no fallback
+	releaseDeleted
+)
+
+// releasePtr constrains T to a struct whose pointer implements ctrlclient.Object,
+// so deleteRelease can be instantiated for both App and HelmRelease.
+type releasePtr[T any] interface {
+	*T
+	ctrlclient.Object
+}
+
+// deleteRelease looks up the release CR of kind T at the cluster's Helm release
+// name/namespace annotations. It skips it if GitOps-managed (Flux Kustomize label),
+// otherwise deletes it along with its "<cluster>-default-apps" counterpart of the
+// same kind. The same rules apply regardless of kind - only the CR type differs.
+func deleteRelease[T any, PT releasePtr[T]](ctx context.Context, log logr.Logger, c ctrlclient.Client, cluster *capi.Cluster, kind string) (releaseResult, error) {
+	obj := PT(new(T))
+	if err := c.Get(ctx, getClusterAppNamespacedName(cluster), obj); err != nil {
+		if apierrors.IsNotFound(err) {
+			return releaseNotFound, nil
+		}
+		log.Error(err, fmt.Sprintf("Unable to get %s for cluster", kind))
+		ErrorsTotal.WithLabelValues(cluster.Name, cluster.Namespace).Inc()
+		return releaseErrored, nil
+	}
+
+	// ignore GitOps-managed resources, ensure we're not deleting the MC's own release
+	if _, ok := obj.GetLabels()[fluxLabel]; ok {
+		IgnoredTotal.WithLabelValues(cluster.Name, cluster.Namespace).Inc()
+		log.Info(fmt.Sprintf("Found label %s in %s. Cluster will be ignored for deletion", fluxLabel, kind))
+		return releaseIgnored, nil
+	}
+
+	log.Info(fmt.Sprintf("Cluster has exceeded the default time to live (%s) and will be deleted", defaultTTL))
+
+	if err := deleteReleaseObj(ctx, log, c, cluster, kind, obj); err != nil {
+		return releaseErrored, err
+	}
+
+	// delete the default-apps counterpart for the cluster
+	defaultObj := PT(new(T))
+	if err := c.Get(ctx, getDefaultAppNamespacedName(cluster), defaultObj); err != nil {
+		if apierrors.IsNotFound(err) {
+			return releaseDeleted, nil
+		}
+		log.Error(err, fmt.Sprintf("unable to get default-apps %s for cluster", kind))
+		ErrorsTotal.WithLabelValues(cluster.Name, cluster.Namespace).Inc()
+		return releaseErrored, err
+	}
+	if err := deleteReleaseObj(ctx, log, c, cluster, kind, defaultObj); err != nil {
+		return releaseErrored, err
+	}
+
+	return releaseDeleted, nil
+}
+
+func deleteReleaseObj(ctx context.Context, log logr.Logger, c ctrlclient.Client, cluster *capi.Cluster, kind string, obj ctrlclient.Object) error {
+	log.Info(fmt.Sprintf("%s %s/%s is being deleted", kind, obj.GetName(), obj.GetNamespace()))
+	if err := c.Delete(ctx, obj, ctrlclient.PropagationPolicy(metav1.DeletePropagationBackground)); err != nil {
+		log.Error(err, fmt.Sprintf("unable to delete %s for cluster", kind))
+		ErrorsTotal.WithLabelValues(cluster.Name, cluster.Namespace).Inc()
+		return err
+	}
+	log.Info(fmt.Sprintf("%s %s/%s was deleted", kind, obj.GetName(), obj.GetNamespace()))
 	return nil
 }
 

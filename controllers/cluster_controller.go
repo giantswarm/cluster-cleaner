@@ -22,6 +22,7 @@ import (
 	"time"
 
 	helmv2 "github.com/fluxcd/helm-controller/api/v2"
+	sourcev1 "github.com/fluxcd/source-controller/api/v1"
 	gsapplication "github.com/giantswarm/apiextensions-application/api/v1alpha1"
 	"github.com/giantswarm/k8smetadata/pkg/label"
 	"github.com/go-logr/logr"
@@ -52,6 +53,7 @@ type ClusterReconciler struct {
 // +kubebuilder:rbac:groups=cluster.x-k8s.io,resources=clusters/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=cluster.x-k8s.io,resources=clusters/finalizers,verbs=update
 // +kubebuilder:rbac:groups=helm.toolkit.fluxcd.io,resources=helmreleases,verbs=get;list;watch;delete
+// +kubebuilder:rbac:groups=source.toolkit.fluxcd.io,resources=ocirepositories,verbs=get;list;watch;delete
 
 func (r *ClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	log := r.Log.WithValues("cluster", req.NamespacedName)
@@ -261,6 +263,7 @@ func deleteRelease[T any, PT releasePtr[T]](ctx context.Context, log logr.Logger
 	if err := deleteReleaseObj(ctx, log, c, cluster, kind, obj); err != nil {
 		return releaseErrored, err
 	}
+	deleteChartRefOCIRepository(ctx, log, c, cluster, obj)
 
 	// delete the default-apps counterpart for the cluster
 	defaultObj := PT(new(T))
@@ -275,8 +278,90 @@ func deleteRelease[T any, PT releasePtr[T]](ctx context.Context, log logr.Logger
 	if err := deleteReleaseObj(ctx, log, c, cluster, kind, defaultObj); err != nil {
 		return releaseErrored, err
 	}
+	deleteChartRefOCIRepository(ctx, log, c, cluster, defaultObj)
 
 	return releaseDeleted, nil
+}
+
+// deleteChartRefOCIRepository best-effort deletes the OCIRepository a HelmRelease's
+// spec.chartRef points to. It's a no-op for App CRs (which reference a shared Catalog,
+// never an OCIRepository) and for HelmReleases without an OCIRepository chartRef.
+// Any failure here is logged and counted but never fails the caller: the cluster's
+// release has already been torn down by this point.
+func deleteChartRefOCIRepository(ctx context.Context, log logr.Logger, c ctrlclient.Client, cluster *capi.Cluster, obj ctrlclient.Object) {
+	hr, ok := obj.(*helmv2.HelmRelease)
+	if !ok || hr.Spec.ChartRef == nil || hr.Spec.ChartRef.Kind != "OCIRepository" {
+		return
+	}
+
+	key := ociRepositoryKey(hr.Spec.ChartRef, hr.Namespace)
+
+	oci := &sourcev1.OCIRepository{}
+	if err := c.Get(ctx, key, oci); err != nil {
+		if !apierrors.IsNotFound(err) {
+			log.Error(err, "unable to get OCIRepository for cluster")
+			ErrorsTotal.WithLabelValues(cluster.Name, cluster.Namespace).Inc()
+		}
+		return
+	}
+
+	if _, ok := oci.GetLabels()[fluxLabel]; ok {
+		log.Info(fmt.Sprintf("Found label %s in OCIRepository. It will be kept", fluxLabel))
+		return
+	}
+
+	stillReferenced, err := ociRepositoryStillReferenced(ctx, c, hr, key)
+	if err != nil {
+		log.Error(err, "unable to check whether OCIRepository is still referenced")
+		ErrorsTotal.WithLabelValues(cluster.Name, cluster.Namespace).Inc()
+		return
+	}
+	if stillReferenced {
+		log.Info(fmt.Sprintf("OCIRepository %s/%s is still referenced by another HelmRelease. It will be kept", key.Namespace, key.Name))
+		return
+	}
+
+	if err := c.Delete(ctx, oci, ctrlclient.PropagationPolicy(metav1.DeletePropagationBackground)); err != nil {
+		log.Error(err, "unable to delete OCIRepository for cluster")
+		ErrorsTotal.WithLabelValues(cluster.Name, cluster.Namespace).Inc()
+		return
+	}
+	log.Info(fmt.Sprintf("OCIRepository %s/%s was deleted", oci.GetNamespace(), oci.GetName()))
+}
+
+// ociRepositoryStillReferenced lists all HelmReleases cluster-wide and checks whether
+// any HelmRelease other than the one being deleted still points its chartRef at the
+// given OCIRepository, so we don't delete a chart shared by another cluster's release.
+func ociRepositoryStillReferenced(ctx context.Context, c ctrlclient.Client, deleting *helmv2.HelmRelease, ociKey ctrlclient.ObjectKey) (bool, error) {
+	var list helmv2.HelmReleaseList
+	if err := c.List(ctx, &list); err != nil {
+		return false, err
+	}
+
+	for i := range list.Items {
+		other := &list.Items[i]
+		if other.Name == deleting.Name && other.Namespace == deleting.Namespace {
+			continue
+		}
+		if other.Spec.ChartRef == nil || other.Spec.ChartRef.Kind != "OCIRepository" {
+			continue
+		}
+		if ociRepositoryKey(other.Spec.ChartRef, other.Namespace) == ociKey {
+			return true, nil
+		}
+	}
+
+	return false, nil
+}
+
+// ociRepositoryKey resolves the namespaced name a chartRef points at, defaulting the
+// namespace to the owning HelmRelease's own when the reference leaves it unset.
+func ociRepositoryKey(ref *helmv2.CrossNamespaceSourceReference, ownerNamespace string) ctrlclient.ObjectKey {
+	namespace := ref.Namespace
+	if namespace == "" {
+		namespace = ownerNamespace
+	}
+	return ctrlclient.ObjectKey{Name: ref.Name, Namespace: namespace}
 }
 
 func deleteReleaseObj(ctx context.Context, log logr.Logger, c ctrlclient.Client, cluster *capi.Cluster, kind string, obj ctrlclient.Object) error {

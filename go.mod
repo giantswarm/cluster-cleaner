@@ -4,6 +4,7 @@ go 1.27.1
 
 require (
 	github.com/fluxcd/helm-controller/api v1.6.4
+	github.com/fluxcd/source-controller/api v1.9.5
 	github.com/giantswarm/apiextensions-application v0.6.2
 	github.com/giantswarm/k8smetadata v0.26.0
 	github.com/go-logr/logr v1.4.4
@@ -25,6 +26,7 @@ require (
 	github.com/emicklei/go-restful/v3 v3.13.0 // indirect
 	github.com/evanphx/json-patch v5.7.0+incompatible // indirect
 	github.com/evanphx/json-patch/v5 v5.9.11 // indirect
+	github.com/fluxcd/pkg/apis/acl v0.10.0 // indirect
 	github.com/fluxcd/pkg/apis/kustomize v1.19.2 // indirect
 	github.com/fluxcd/pkg/apis/meta v1.30.2 // indirect
 	github.com/fsnotify/fsnotify v1.10.1 // indirect

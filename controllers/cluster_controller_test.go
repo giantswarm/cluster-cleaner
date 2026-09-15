@@ -7,6 +7,8 @@ import (
 	"testing"
 	"time"
 
+	helmv2 "github.com/fluxcd/helm-controller/api/v2"
+	sourcev1 "github.com/fluxcd/source-controller/api/v1"
 	gsapplication "github.com/giantswarm/apiextensions-application/api/v1alpha1"
 	"github.com/giantswarm/k8smetadata/pkg/label"
 	"github.com/stretchr/testify/assert"
@@ -29,6 +31,8 @@ func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(fakeScheme))
 	_ = capi.AddToScheme(fakeScheme)
 	_ = gsapplication.AddToScheme(fakeScheme)
+	_ = helmv2.AddToScheme(fakeScheme)
+	_ = sourcev1.AddToScheme(fakeScheme)
 }
 
 func TestClusterController(t *testing.T) {
@@ -582,5 +586,677 @@ func TestClusterAppDeletion(t *testing.T) {
 				t.Logf("Test case '%s' failed", tc.name)
 			}
 		})
+	}
+}
+
+func TestClusterHelmReleaseDeletion(t *testing.T) {
+	testCases := []struct {
+		name                    string
+		expectedClusterDeletion bool
+
+		cluster      *capi.Cluster
+		helmReleases []struct {
+			hr               *helmv2.HelmRelease
+			expectedDeletion bool
+		}
+	}{
+		// HelmRelease marked for deletion - no App CR exists for this cluster,
+		// so the App-CR lookup falls back to HelmRelease
+		{
+			name:                    "case 0 - helmrelease delete",
+			expectedClusterDeletion: false,
+
+			cluster: &capi.Cluster{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test",
+					Namespace: "default",
+					CreationTimestamp: metav1.Time{
+						Time: time.Now().Add(-defaultTTL),
+					},
+					Annotations: map[string]string{
+						helmReleaseNameAnnotation:      "test",
+						helmReleaseNamespaceAnnotation: "default",
+					},
+					Finalizers: []string{
+						"operatorkit.giantswarm.io/cluster-operator-cluster-controller",
+					},
+				},
+			},
+			helmReleases: []struct {
+				hr               *helmv2.HelmRelease
+				expectedDeletion bool
+			}{
+				{
+					expectedDeletion: true,
+					hr: &helmv2.HelmRelease{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      "test",
+							Namespace: "default",
+							Labels: map[string]string{
+								label.Cluster: "test",
+							},
+							Finalizers: []string{
+								"test.giantswarm.io/keep",
+							},
+						},
+					},
+				},
+				{
+					expectedDeletion: true,
+					hr: &helmv2.HelmRelease{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      "test-default-apps",
+							Namespace: "default",
+							Labels: map[string]string{
+								label.Cluster: "test",
+							},
+							Finalizers: []string{
+								"test.giantswarm.io/keep",
+							},
+						},
+					},
+				},
+			},
+		},
+		// nothing marked for deletion - TTL not reached
+		{
+			name:                    "case 1 - no delete",
+			expectedClusterDeletion: false,
+
+			cluster: &capi.Cluster{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test",
+					Namespace: "default",
+					CreationTimestamp: metav1.Time{
+						Time: time.Now().Add(defaultTTL),
+					},
+					Annotations: map[string]string{
+						helmReleaseNameAnnotation:      "test",
+						helmReleaseNamespaceAnnotation: "default",
+					},
+					Finalizers: []string{
+						"operatorkit.giantswarm.io/cluster-operator-cluster-controller",
+					},
+				},
+			},
+			helmReleases: []struct {
+				hr               *helmv2.HelmRelease
+				expectedDeletion bool
+			}{
+				{
+					expectedDeletion: false,
+					hr: &helmv2.HelmRelease{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      "test",
+							Namespace: "default",
+							Labels: map[string]string{
+								label.Cluster: "test",
+							},
+							Finalizers: []string{
+								"test.giantswarm.io/keep",
+							},
+						},
+					},
+				},
+			},
+		},
+		// HelmRelease carrying the Flux Kustomize label is the MC's own release - ignored
+		{
+			name:                    "case 2 - flux-managed helmrelease ignored",
+			expectedClusterDeletion: false,
+
+			cluster: &capi.Cluster{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test",
+					Namespace: "default",
+					CreationTimestamp: metav1.Time{
+						Time: time.Now().Add(-defaultTTL),
+					},
+					Annotations: map[string]string{
+						helmReleaseNameAnnotation:      "test",
+						helmReleaseNamespaceAnnotation: "default",
+					},
+					Finalizers: []string{
+						"operatorkit.giantswarm.io/cluster-operator-cluster-controller",
+					},
+				},
+			},
+			helmReleases: []struct {
+				hr               *helmv2.HelmRelease
+				expectedDeletion bool
+			}{
+				{
+					expectedDeletion: false,
+					hr: &helmv2.HelmRelease{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      "test",
+							Namespace: "default",
+							Labels: map[string]string{
+								label.Cluster:                      "test",
+								"kustomize.toolkit.fluxcd.io/name": "flux",
+							},
+							Finalizers: []string{
+								"test.giantswarm.io/keep",
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+	for i, tc := range testCases {
+		t.Run(strconv.Itoa(i), func(t *testing.T) {
+			fakeClientBuilder := fake.NewClientBuilder().WithScheme(fakeScheme).WithObjects(tc.cluster)
+			for _, hr := range tc.helmReleases {
+				fakeClientBuilder = fakeClientBuilder.WithObjects(hr.hr)
+			}
+			fakeClient := fakeClientBuilder.Build()
+			fakeRecorder := record.NewFakeRecorder(1)
+			r := &ClusterReconciler{
+				Client:   fakeClient,
+				Scheme:   fakeScheme,
+				Log:      ctrl.Log.WithName("fake"),
+				recorder: fakeRecorder,
+			}
+			ctx := context.TODO()
+			_, err := r.Reconcile(ctx, ctrl.Request{NamespacedName: types.NamespacedName{Name: tc.cluster.GetName(), Namespace: tc.cluster.GetNamespace()}})
+			if err != nil {
+				t.Error(err)
+			}
+
+			cluster := &capi.Cluster{}
+			err = fakeClient.Get(ctx, types.NamespacedName{Name: tc.cluster.GetName(), Namespace: tc.cluster.GetNamespace()}, cluster)
+			if err != nil {
+				t.Error(err)
+			}
+
+			if tc.expectedClusterDeletion && cluster.DeletionTimestamp == nil {
+				t.Errorf("expected deletion timestamp to be set on cluster")
+			}
+
+			if !tc.expectedClusterDeletion {
+				for _, hr := range tc.helmReleases {
+					got := &helmv2.HelmRelease{}
+					err = fakeClient.Get(ctx, types.NamespacedName{Name: hr.hr.GetName(), Namespace: hr.hr.GetNamespace()}, got)
+					if err != nil {
+						t.Error(err)
+					}
+
+					if hr.expectedDeletion && got.DeletionTimestamp == nil {
+						t.Errorf("expected deletion timestamp to be set on HelmRelease")
+					} else if !hr.expectedDeletion && got.DeletionTimestamp != nil {
+						t.Errorf("not expecting deletion timestamp to be set on HelmRelease")
+					}
+				}
+			}
+			if t.Failed() {
+				t.Logf("Test case '%s' failed", tc.name)
+			}
+		})
+	}
+}
+
+// TestClusterOCIRepositoryDeletion covers cleanup of the OCIRepository a HelmRelease
+// points to via spec.chartRef, alongside the HelmRelease itself.
+func TestClusterOCIRepositoryDeletion(t *testing.T) {
+	cluster := &capi.Cluster{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test",
+			Namespace: "default",
+			CreationTimestamp: metav1.Time{
+				Time: time.Now().Add(-defaultTTL),
+			},
+			Annotations: map[string]string{
+				helmReleaseNameAnnotation:      "test",
+				helmReleaseNamespaceAnnotation: "default",
+			},
+			Finalizers: []string{
+				"operatorkit.giantswarm.io/cluster-operator-cluster-controller",
+			},
+		},
+	}
+	hr := &helmv2.HelmRelease{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test",
+			Namespace: "default",
+			Labels: map[string]string{
+				label.Cluster: "test",
+			},
+			Finalizers: []string{
+				"test.giantswarm.io/keep",
+			},
+		},
+		Spec: helmv2.HelmReleaseSpec{
+			ChartRef: &helmv2.CrossNamespaceSourceReference{
+				Kind: "OCIRepository",
+				Name: "test-chart",
+			},
+		},
+	}
+	oci := &sourcev1.OCIRepository{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-chart",
+			Namespace: "default",
+			Finalizers: []string{
+				"test.giantswarm.io/keep",
+			},
+		},
+	}
+
+	fakeClient := fake.NewClientBuilder().WithScheme(fakeScheme).WithObjects(cluster, hr, oci).Build()
+	r := &ClusterReconciler{
+		Client:   fakeClient,
+		Scheme:   fakeScheme,
+		Log:      ctrl.Log.WithName("fake"),
+		recorder: record.NewFakeRecorder(1),
+	}
+	ctx := context.TODO()
+	_, err := r.Reconcile(ctx, ctrl.Request{NamespacedName: types.NamespacedName{Name: cluster.GetName(), Namespace: cluster.GetNamespace()}})
+	if err != nil {
+		t.Error(err)
+	}
+
+	gotOci := &sourcev1.OCIRepository{}
+	if err := fakeClient.Get(ctx, types.NamespacedName{Name: "test-chart", Namespace: "default"}, gotOci); err != nil {
+		t.Error(err)
+	}
+	if gotOci.DeletionTimestamp == nil {
+		t.Errorf("expected OCIRepository to be deleted alongside its HelmRelease")
+	}
+}
+
+// TestClusterOCIRepositorySharedByOtherHelmReleaseIsKept covers the safety check: an
+// OCIRepository still referenced by another cluster's HelmRelease must not be deleted.
+func TestClusterOCIRepositorySharedByOtherHelmReleaseIsKept(t *testing.T) {
+	cluster := &capi.Cluster{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test",
+			Namespace: "default",
+			CreationTimestamp: metav1.Time{
+				Time: time.Now().Add(-defaultTTL),
+			},
+			Annotations: map[string]string{
+				helmReleaseNameAnnotation:      "test",
+				helmReleaseNamespaceAnnotation: "default",
+			},
+			Finalizers: []string{
+				"operatorkit.giantswarm.io/cluster-operator-cluster-controller",
+			},
+		},
+	}
+	hr := &helmv2.HelmRelease{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test",
+			Namespace: "default",
+			Labels: map[string]string{
+				label.Cluster: "test",
+			},
+			Finalizers: []string{
+				"test.giantswarm.io/keep",
+			},
+		},
+		Spec: helmv2.HelmReleaseSpec{
+			ChartRef: &helmv2.CrossNamespaceSourceReference{
+				Kind: "OCIRepository",
+				Name: "test-chart",
+			},
+		},
+	}
+	otherHr := &helmv2.HelmRelease{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "other-cluster",
+			Namespace: "default",
+			Labels: map[string]string{
+				label.Cluster: "other-cluster",
+			},
+		},
+		Spec: helmv2.HelmReleaseSpec{
+			ChartRef: &helmv2.CrossNamespaceSourceReference{
+				Kind: "OCIRepository",
+				Name: "test-chart",
+			},
+		},
+	}
+	oci := &sourcev1.OCIRepository{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-chart",
+			Namespace: "default",
+			Finalizers: []string{
+				"test.giantswarm.io/keep",
+			},
+		},
+	}
+
+	fakeClient := fake.NewClientBuilder().WithScheme(fakeScheme).WithObjects(cluster, hr, otherHr, oci).Build()
+	r := &ClusterReconciler{
+		Client:   fakeClient,
+		Scheme:   fakeScheme,
+		Log:      ctrl.Log.WithName("fake"),
+		recorder: record.NewFakeRecorder(1),
+	}
+	ctx := context.TODO()
+	_, err := r.Reconcile(ctx, ctrl.Request{NamespacedName: types.NamespacedName{Name: cluster.GetName(), Namespace: cluster.GetNamespace()}})
+	if err != nil {
+		t.Error(err)
+	}
+
+	gotOci := &sourcev1.OCIRepository{}
+	if err := fakeClient.Get(ctx, types.NamespacedName{Name: "test-chart", Namespace: "default"}, gotOci); err != nil {
+		t.Error(err)
+	}
+	if gotOci.DeletionTimestamp != nil {
+		t.Errorf("expected OCIRepository to be kept while another HelmRelease still references it")
+	}
+}
+
+// TestClusterOCIRepositoryFluxManagedIsKept covers the GitOps-skip check: an
+// OCIRepository managed by a Flux Kustomization must not be deleted.
+func TestClusterOCIRepositoryFluxManagedIsKept(t *testing.T) {
+	cluster := &capi.Cluster{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test",
+			Namespace: "default",
+			CreationTimestamp: metav1.Time{
+				Time: time.Now().Add(-defaultTTL),
+			},
+			Annotations: map[string]string{
+				helmReleaseNameAnnotation:      "test",
+				helmReleaseNamespaceAnnotation: "default",
+			},
+			Finalizers: []string{
+				"operatorkit.giantswarm.io/cluster-operator-cluster-controller",
+			},
+		},
+	}
+	hr := &helmv2.HelmRelease{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test",
+			Namespace: "default",
+			Labels: map[string]string{
+				label.Cluster: "test",
+			},
+			Finalizers: []string{
+				"test.giantswarm.io/keep",
+			},
+		},
+		Spec: helmv2.HelmReleaseSpec{
+			ChartRef: &helmv2.CrossNamespaceSourceReference{
+				Kind: "OCIRepository",
+				Name: "test-chart",
+			},
+		},
+	}
+	oci := &sourcev1.OCIRepository{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-chart",
+			Namespace: "default",
+			Labels: map[string]string{
+				"kustomize.toolkit.fluxcd.io/name": "flux",
+			},
+			Finalizers: []string{
+				"test.giantswarm.io/keep",
+			},
+		},
+	}
+
+	fakeClient := fake.NewClientBuilder().WithScheme(fakeScheme).WithObjects(cluster, hr, oci).Build()
+	r := &ClusterReconciler{
+		Client:   fakeClient,
+		Scheme:   fakeScheme,
+		Log:      ctrl.Log.WithName("fake"),
+		recorder: record.NewFakeRecorder(1),
+	}
+	ctx := context.TODO()
+	_, err := r.Reconcile(ctx, ctrl.Request{NamespacedName: types.NamespacedName{Name: cluster.GetName(), Namespace: cluster.GetNamespace()}})
+	if err != nil {
+		t.Error(err)
+	}
+
+	gotOci := &sourcev1.OCIRepository{}
+	if err := fakeClient.Get(ctx, types.NamespacedName{Name: "test-chart", Namespace: "default"}, gotOci); err != nil {
+		t.Error(err)
+	}
+	if gotOci.DeletionTimestamp != nil {
+		t.Errorf("expected Flux-managed OCIRepository to be kept")
+	}
+}
+
+// TestClusterOCIRepositoryDeletionForDefaultApps covers OCIRepository cleanup for the
+// <cluster>-default-apps HelmRelease, independently from the primary release's own.
+func TestClusterOCIRepositoryDeletionForDefaultApps(t *testing.T) {
+	cluster := &capi.Cluster{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test",
+			Namespace: "default",
+			CreationTimestamp: metav1.Time{
+				Time: time.Now().Add(-defaultTTL),
+			},
+			Annotations: map[string]string{
+				helmReleaseNameAnnotation:      "test",
+				helmReleaseNamespaceAnnotation: "default",
+			},
+			Finalizers: []string{
+				"operatorkit.giantswarm.io/cluster-operator-cluster-controller",
+			},
+		},
+	}
+	hr := &helmv2.HelmRelease{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test",
+			Namespace: "default",
+			Labels: map[string]string{
+				label.Cluster: "test",
+			},
+			Finalizers: []string{
+				"test.giantswarm.io/keep",
+			},
+		},
+		Spec: helmv2.HelmReleaseSpec{
+			ChartRef: &helmv2.CrossNamespaceSourceReference{
+				Kind: "OCIRepository",
+				Name: "test-chart",
+			},
+		},
+	}
+	defaultAppsHr := &helmv2.HelmRelease{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-default-apps",
+			Namespace: "default",
+			Labels: map[string]string{
+				label.Cluster: "test",
+			},
+			Finalizers: []string{
+				"test.giantswarm.io/keep",
+			},
+		},
+		Spec: helmv2.HelmReleaseSpec{
+			ChartRef: &helmv2.CrossNamespaceSourceReference{
+				Kind: "OCIRepository",
+				Name: "default-apps-chart",
+			},
+		},
+	}
+	oci := &sourcev1.OCIRepository{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-chart",
+			Namespace: "default",
+			Finalizers: []string{
+				"test.giantswarm.io/keep",
+			},
+		},
+	}
+	defaultAppsOci := &sourcev1.OCIRepository{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "default-apps-chart",
+			Namespace: "default",
+			Finalizers: []string{
+				"test.giantswarm.io/keep",
+			},
+		},
+	}
+
+	fakeClient := fake.NewClientBuilder().WithScheme(fakeScheme).WithObjects(cluster, hr, defaultAppsHr, oci, defaultAppsOci).Build()
+	r := &ClusterReconciler{
+		Client:   fakeClient,
+		Scheme:   fakeScheme,
+		Log:      ctrl.Log.WithName("fake"),
+		recorder: record.NewFakeRecorder(1),
+	}
+	ctx := context.TODO()
+	_, err := r.Reconcile(ctx, ctrl.Request{NamespacedName: types.NamespacedName{Name: cluster.GetName(), Namespace: cluster.GetNamespace()}})
+	if err != nil {
+		t.Error(err)
+	}
+
+	gotOci := &sourcev1.OCIRepository{}
+	if err := fakeClient.Get(ctx, types.NamespacedName{Name: "test-chart", Namespace: "default"}, gotOci); err != nil {
+		t.Error(err)
+	}
+	if gotOci.DeletionTimestamp == nil {
+		t.Errorf("expected primary release's OCIRepository to be deleted")
+	}
+
+	gotDefaultAppsOci := &sourcev1.OCIRepository{}
+	if err := fakeClient.Get(ctx, types.NamespacedName{Name: "default-apps-chart", Namespace: "default"}, gotDefaultAppsOci); err != nil {
+		t.Error(err)
+	}
+	if gotDefaultAppsOci.DeletionTimestamp == nil {
+		t.Errorf("expected default-apps release's OCIRepository to be deleted")
+	}
+}
+
+// TestClusterHelmReleaseNonOCIChartRefIgnored covers HelmReleases whose chartRef
+// points at something other than an OCIRepository (e.g. a pre-built HelmChart) -
+// cluster teardown must still succeed with no attempt to touch an OCIRepository.
+func TestClusterHelmReleaseNonOCIChartRefIgnored(t *testing.T) {
+	cluster := &capi.Cluster{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test",
+			Namespace: "default",
+			CreationTimestamp: metav1.Time{
+				Time: time.Now().Add(-defaultTTL),
+			},
+			Annotations: map[string]string{
+				helmReleaseNameAnnotation:      "test",
+				helmReleaseNamespaceAnnotation: "default",
+			},
+			Finalizers: []string{
+				"operatorkit.giantswarm.io/cluster-operator-cluster-controller",
+			},
+		},
+	}
+	hr := &helmv2.HelmRelease{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test",
+			Namespace: "default",
+			Labels: map[string]string{
+				label.Cluster: "test",
+			},
+			Finalizers: []string{
+				"test.giantswarm.io/keep",
+			},
+		},
+		Spec: helmv2.HelmReleaseSpec{
+			ChartRef: &helmv2.CrossNamespaceSourceReference{
+				Kind: "HelmChart",
+				Name: "test-chart",
+			},
+		},
+	}
+
+	fakeClient := fake.NewClientBuilder().WithScheme(fakeScheme).WithObjects(cluster, hr).Build()
+	r := &ClusterReconciler{
+		Client:   fakeClient,
+		Scheme:   fakeScheme,
+		Log:      ctrl.Log.WithName("fake"),
+		recorder: record.NewFakeRecorder(1),
+	}
+	ctx := context.TODO()
+	_, err := r.Reconcile(ctx, ctrl.Request{NamespacedName: types.NamespacedName{Name: cluster.GetName(), Namespace: cluster.GetNamespace()}})
+	if err != nil {
+		t.Error(err)
+	}
+
+	gotHr := &helmv2.HelmRelease{}
+	if err := fakeClient.Get(ctx, types.NamespacedName{Name: "test", Namespace: "default"}, gotHr); err != nil {
+		t.Error(err)
+	}
+	if gotHr.DeletionTimestamp == nil {
+		t.Errorf("expected HelmRelease to be deleted regardless of chartRef kind")
+	}
+}
+
+// TestClusterAppTakesPrecedenceOverHelmRelease covers the migration window where a
+// cluster's release could be represented by either mechanism: the App CR path is
+// tried first, and only falls back to HelmRelease when no App CR is found.
+func TestClusterAppTakesPrecedenceOverHelmRelease(t *testing.T) {
+	cluster := &capi.Cluster{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test",
+			Namespace: "default",
+			CreationTimestamp: metav1.Time{
+				Time: time.Now().Add(-defaultTTL),
+			},
+			Annotations: map[string]string{
+				helmReleaseNameAnnotation:      "test",
+				helmReleaseNamespaceAnnotation: "default",
+			},
+			Finalizers: []string{
+				"operatorkit.giantswarm.io/cluster-operator-cluster-controller",
+			},
+		},
+	}
+	app := &gsapplication.App{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test",
+			Namespace: "default",
+			Labels: map[string]string{
+				label.Cluster: "test",
+			},
+			Finalizers: []string{
+				"test.giantswarm.io/keep",
+			},
+		},
+	}
+	hr := &helmv2.HelmRelease{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test",
+			Namespace: "default",
+			Labels: map[string]string{
+				label.Cluster: "test",
+			},
+			Finalizers: []string{
+				"test.giantswarm.io/keep",
+			},
+		},
+	}
+
+	fakeClient := fake.NewClientBuilder().WithScheme(fakeScheme).WithObjects(cluster, app, hr).Build()
+	r := &ClusterReconciler{
+		Client:   fakeClient,
+		Scheme:   fakeScheme,
+		Log:      ctrl.Log.WithName("fake"),
+		recorder: record.NewFakeRecorder(1),
+	}
+	ctx := context.TODO()
+	_, err := r.Reconcile(ctx, ctrl.Request{NamespacedName: types.NamespacedName{Name: cluster.GetName(), Namespace: cluster.GetNamespace()}})
+	if err != nil {
+		t.Error(err)
+	}
+
+	gotApp := &gsapplication.App{}
+	if err := fakeClient.Get(ctx, types.NamespacedName{Name: "test", Namespace: "default"}, gotApp); err != nil {
+		t.Error(err)
+	}
+	if gotApp.DeletionTimestamp == nil {
+		t.Errorf("expected App CR to be deleted")
+	}
+
+	gotHr := &helmv2.HelmRelease{}
+	if err := fakeClient.Get(ctx, types.NamespacedName{Name: "test", Namespace: "default"}, gotHr); err != nil {
+		t.Error(err)
+	}
+	if gotHr.DeletionTimestamp != nil {
+		t.Errorf("expected HelmRelease to be left untouched while an App CR exists")
 	}
 }

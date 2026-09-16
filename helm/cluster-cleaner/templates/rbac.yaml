@@ -37,7 +37,25 @@ rules:
   resources:
   - apps
   verbs:
-  - "*"  
+  - "*"
+- apiGroups:
+  - "helm.toolkit.fluxcd.io"
+  resources:
+  - helmreleases
+  verbs:
+  - get
+  - list
+  - watch
+  - delete
+- apiGroups:
+  - "source.toolkit.fluxcd.io"
+  resources:
+  - ocirepositories
+  verbs:
+  - get
+  - list
+  - watch
+  - delete
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding

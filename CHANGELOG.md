@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.12.0] - 2026-09-16
+
 ### Added
 
 - Support deleting Flux HelmRelease-managed clusters, including their referenced OCIRepository (if not used by another HelmRelease).
@@ -147,7 +149,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 
 
-[Unreleased]: https://github.com/giantswarm/cluster-cleaner/compare/v0.11.1...HEAD
+[Unreleased]: https://github.com/giantswarm/cluster-cleaner/compare/v0.12.0...HEAD
+[0.12.0]: https://github.com/giantswarm/cluster-cleaner/compare/v0.11.1...v0.12.0
 [0.11.1]: https://github.com/giantswarm/cluster-cleaner/compare/v0.11.0...v0.11.1
 [0.11.0]: https://github.com/giantswarm/cluster-cleaner/compare/v0.10.2...v0.11.0
 [0.10.2]: https://github.com/giantswarm/cluster-cleaner/compare/v0.10.1...v0.10.2

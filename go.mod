@@ -4,7 +4,7 @@ go 1.27.1
 
 require (
 	github.com/fluxcd/helm-controller/api v1.7.1
-	github.com/fluxcd/source-controller/api v1.10.0
+	github.com/fluxcd/source-controller/api v1.10.1
 	github.com/giantswarm/apiextensions-application v0.6.2
 	github.com/giantswarm/k8smetadata v0.26.0
 	github.com/go-logr/logr v1.4.4

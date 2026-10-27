@@ -14,8 +14,8 @@ github.com/evanphx/json-patch v0.5.2 h1:xVCHIVMUu1wtM/VkR9jVZ45N3FhZfYMMYGorLCR8
 github.com/evanphx/json-patch v0.5.2/go.mod h1:ZWS5hhDbVDyob71nXKNL0+PWn6ToqBHMikGIFbs31qQ=
 github.com/evanphx/json-patch/v5 v5.9.11 h1:/8HVnzMq13/3x9TPvjG08wUGqBTmZBsCWzjTM0wiaDU=
 github.com/evanphx/json-patch/v5 v5.9.11/go.mod h1:3j+LviiESTElxA4p3EMKAB9HXj3/XEtnUf6OZxqIQTM=
-github.com/fluxcd/helm-controller/api v1.7.0 h1:BygSQLjNazSLwtR7/TUPQ0bn3g9Rzd9e2m9Sbo9PnfM=
-github.com/fluxcd/helm-controller/api v1.7.0/go.mod h1:cCTRZcz/hjvI+3AxRGgsGe/AeEjZHHKUYxV/+6uidNM=
+github.com/fluxcd/helm-controller/api v1.7.1 h1:kARTcSBiS05mQsY7nVdL+XGaIGPZd/oC5owFTN6NIyk=
+github.com/fluxcd/helm-controller/api v1.7.1/go.mod h1:cCTRZcz/hjvI+3AxRGgsGe/AeEjZHHKUYxV/+6uidNM=
 github.com/fluxcd/pkg/apis/acl v0.12.0 h1:UWpZDqKxpKDW38wdXIMHV8Uv3POPu2vUrra0JH1frH0=
 github.com/fluxcd/pkg/apis/acl v0.12.0/go.mod h1:PJrGIu5Bw/6/siO95uhS+pi5oKSU+gVJqHqsPHb8Kok=
 github.com/fluxcd/pkg/apis/kustomize v1.23.0 h1:tT/sUURyh6ixQG4+Y/ZoUu+hh5/DQLRraWBgy42ubqQ=
